@@ -17,13 +17,13 @@ pub enum Error {
     BadTemplate(handlebars::TemplateError),
 
     /// Failed to generate an adventure with the given config.
-    Adventure(crate::adventure::Error),
+    Adventure(crate::adventure::error::Error),
 
     /// Page generation failed.
     PageGeneration(handlebars::RenderError),
 
-    /// Failed to copy an additional file.
-    CopyAdditionalFile(std::io::Error),
+    /// Failed to write an output file.
+    WriteOutput(std::path::PathBuf, std::io::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -36,9 +36,9 @@ impl std::fmt::Display for Error {
             Error::BadTemplate(e) => write!(f, "Failed parse template file: {e}"),
             Error::Adventure(e) => write!(f, "Failed to generate adventure from config: {e}"),
             Error::PageGeneration(e) => write!(f, "Failed generate a page: {e}"),
-            Error::CopyAdditionalFile(e) => write!(
+            Error::WriteOutput(name, e) => write!(
                 f,
-                "Failed to copy an additional file to the output directory: {e}"
+                "Failed to write file {name:?} to the output directory: {e}"
             ),
         }
     }
