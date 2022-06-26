@@ -6,6 +6,15 @@ pub enum Error {
 
     /// Failed to parse the config file.
     ParseConfig(toml::de::Error),
+
+    /// Failed to read the template file to a string.
+    ReadTemplate(std::io::Error),
+
+    /// A template was not valid.
+    BadTemplate(handlebars::TemplateError),
+
+    /// Page generation failed.
+    PageGeneration(handlebars::RenderError),
 }
 
 impl std::fmt::Display for Error {
@@ -13,6 +22,9 @@ impl std::fmt::Display for Error {
         match self {
             Error::ReadConfig(e) => write!(f, "Failed to read config file: {e}"),
             Error::ParseConfig(e) => write!(f, "Failed to parse config file: {e}"),
+            Error::ReadTemplate(e) => write!(f, "Failed to read template file: {e}"),
+            Error::BadTemplate(e) => write!(f, "Failed parse template file: {e}"),
+            Error::PageGeneration(e) => write!(f, "Failed generate a page: {e}"),
         }
     }
 }
