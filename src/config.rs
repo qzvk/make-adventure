@@ -18,5 +18,5 @@ pub struct Page {
 #[derive(Debug, Deserialize)]
 pub struct Config {
     /// The set of all pages of the adventure, keyed by a unique identifier.
-    pages: HashMap<String, Page>,
+    pub pages: HashMap<String, Page>,
 }
