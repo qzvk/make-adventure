@@ -109,3 +109,25 @@ Provided variables are:
 </body>
 </html>
 ```
+
+## To-dos
+
+### Deterministic page numbers
+
+Since serde is used for configuration parsing, and each page gets stored in a `HashMap`, the outputted page numbers are not consistent across builds. This is not desirable, since updates which only append or modify pages (and not re-arrange any) should not modify pre-existing page numbers. This makes 'saving your place' impossible, and also looks weird to a user, if they go from page 1 to 15 in one step, for example.
+
+### Better configuration language
+
+Currently, TOML is being used, which creates a lot of visual noise and doesn't feel like the correct choice. A different language should be used for writing and configuring pages. This will likely either be Markdown or a simple custom language.
+
+### Page-specific files
+
+I need to be able to add images to my pages, so specifying custom files for each page will be required. The files will be copied into the output directory, and have their paths passed to the templating system.
+
+### Graphical front-end
+
+Unlikely to do this in the near future. Using a graphical interface will make managing complex storied easier, since ensuring links are correct in a text file is difficult and error prone.
+
+### Multiple files
+
+I'd like to be able to split the config files into multiple parts, so that I'm not staring at a single file the whole time I'm writing. Specifying a 'root' config, and then recursively including others would be very useful.
