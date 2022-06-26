@@ -1,5 +1,7 @@
 [package]
 name = "make-adventure"
+authors = ["qzvck <reisuo@protonmail.com>"]
+description = "A tool for generating adventures in HTML form."
 version = "0.1.0"
 edition = "2021"
 
