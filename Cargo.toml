@@ -4,6 +4,7 @@ authors = ["qzvck <reisuo@protonmail.com>"]
 description = "A tool for generating adventures in HTML form."
 version = "0.1.0"
 edition = "2021"
+readme = "README.md"
 
 [dependencies]
 toml = "0.5.9"
