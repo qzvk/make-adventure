@@ -18,6 +18,9 @@ pub enum Error {
 
     /// Page generation failed.
     PageGeneration(handlebars::RenderError),
+
+    /// Failed to copy an additional file.
+    CopyAdditionalFile(std::io::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -29,6 +32,10 @@ impl std::fmt::Display for Error {
             Error::ReadTemplate(e) => write!(f, "Failed to read template file: {e}"),
             Error::BadTemplate(e) => write!(f, "Failed parse template file: {e}"),
             Error::PageGeneration(e) => write!(f, "Failed generate a page: {e}"),
+            Error::CopyAdditionalFile(e) => write!(
+                f,
+                "Failed to copy an additional file to the output directory: {e}"
+            ),
         }
     }
 }

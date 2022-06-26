@@ -30,7 +30,18 @@ fn run() -> Result<(), Error> {
         let mut path = PathBuf::from(&args.output);
         path.push(format!("{identifier}.html"));
 
-        std::fs::write(path, output).unwrap();
+        std::fs::write(&path, output).unwrap();
+        println!("Wrote {path:?}");
+    }
+
+    if let Some(additional_files) = config.additional_files {
+        for file in additional_files {
+            let mut destination = PathBuf::from(&args.output);
+            destination.push(&file);
+
+            std::fs::copy(&file, destination).map_err(Error::CopyAdditionalFile)?;
+            println!("Copied {file:?}");
+        }
     }
 
     Ok(())
