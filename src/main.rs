@@ -1,8 +1,9 @@
+mod adventure;
 mod args;
 mod config;
 mod error;
 
-use crate::{args::Args, config::Config, error::Error};
+use crate::{adventure::Adventure, args::Args, config::Config, error::Error};
 use handlebars::Handlebars;
 use std::{path::PathBuf, process::ExitCode};
 
@@ -15,20 +16,25 @@ fn run() -> Result<(), Error> {
 
     std::fs::create_dir_all(&args.output).map_err(Error::Directory)?;
 
-    let template = std::fs::read_to_string(config.template).map_err(Error::ReadTemplate)?;
+    let template = std::fs::read_to_string(&config.template).map_err(Error::ReadTemplate)?;
 
     let mut handlebars = Handlebars::new();
     handlebars
         .register_template_string("template", template)
         .map_err(Error::BadTemplate)?;
 
-    for (identifier, page) in config.pages {
+    let adventure = Adventure::new(&config).map_err(Error::Adventure)?;
+
+    println!("{adventure:#?}");
+
+    for (index, page) in adventure.pages.iter().enumerate() {
         let output = handlebars
             .render("template", &page)
             .map_err(Error::PageGeneration)?;
 
         let mut path = PathBuf::from(&args.output);
-        path.push(format!("{identifier}.html"));
+        // Indicies offset by 1, since they're read by humans.
+        path.push(format!("{}.html", index + 1));
 
         std::fs::write(&path, output).unwrap();
         println!("Wrote {path:?}");

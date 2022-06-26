@@ -16,6 +16,9 @@ pub enum Error {
     /// A template was not valid.
     BadTemplate(handlebars::TemplateError),
 
+    /// Failed to generate an adventure with the given config.
+    Adventure(crate::adventure::Error),
+
     /// Page generation failed.
     PageGeneration(handlebars::RenderError),
 
@@ -31,6 +34,7 @@ impl std::fmt::Display for Error {
             Error::Directory(e) => write!(f, "Failed to create output directory: {e}"),
             Error::ReadTemplate(e) => write!(f, "Failed to read template file: {e}"),
             Error::BadTemplate(e) => write!(f, "Failed parse template file: {e}"),
+            Error::Adventure(e) => write!(f, "Failed to generate adventure from config: {e}"),
             Error::PageGeneration(e) => write!(f, "Failed generate a page: {e}"),
             Error::CopyAdditionalFile(e) => write!(
                 f,
