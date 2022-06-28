@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
-
 /// A single page of the adventure.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug)]
 pub struct Page {
     /// The title of the page.
     pub title: String,
@@ -16,10 +14,33 @@ pub struct Page {
 }
 
 /// A configuration of an adventure.
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename = "kebab-case")]
+#[derive(Debug)]
 pub struct Script {
     /// The set of all pages of the adventure, keyed by a unique identifier.
-    #[serde(flatten)]
     pub pages: HashMap<String, Page>,
 }
+
+impl TryFrom<&str> for Script {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Script::new(value)
+    }
+}
+
+impl Script {
+    pub fn new(_string: &str) -> Result<Self, ParseError> {
+        todo!()
+    }
+}
+
+#[derive(Debug)]
+pub enum ParseError {}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Ok(())
+    }
+}
+
+impl std::error::Error for ParseError {}

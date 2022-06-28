@@ -11,7 +11,7 @@ pub enum Error {
     ReadScript(std::io::Error),
 
     /// Failed to parse the script.
-    ParseScript(toml::de::Error),
+    ParseScript(crate::script::ParseError),
 
     /// Failed to create output directory.
     Directory(std::io::Error),

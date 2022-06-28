@@ -19,8 +19,7 @@ fn get_config(args: &Args) -> Result<Config, Error> {
 
 fn get_script(config: &Config) -> Result<Script, Error> {
     let string = std::fs::read_to_string(&config.script).map_err(Error::ReadScript)?;
-    let script = toml::from_str(&string).map_err(Error::ParseScript)?;
-    Ok(script)
+    Script::try_from(string.as_ref()).map_err(Error::ParseScript)
 }
 
 /// Create the output directory (if it does not already exist).
