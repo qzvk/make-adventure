@@ -2,11 +2,12 @@ mod adventure;
 mod args;
 mod config;
 mod error;
+mod script;
 
 use crate::{adventure::Adventure, args::Args, config::Config, error::Error};
 use clap::Parser;
-use config::Script;
 use handlebars::Handlebars;
+use script::Script;
 use std::{path::PathBuf, process::ExitCode};
 
 /// Read and parse the config file named by the arguments.

@@ -1,6 +1,6 @@
 pub mod error;
 
-use crate::config::{self, Script};
+use crate::script::{self, Script};
 use error::Error;
 use serde::Serialize;
 
@@ -40,7 +40,7 @@ impl<'a> Adventure<'a> {
     fn make_page(
         config: &'a Script,
         id: &'a str,
-        info: &'a config::Page,
+        info: &'a script::Page,
     ) -> Result<Page<'a>, Error> {
         let links = Self::make_links(config, id, info)?;
 
@@ -54,7 +54,7 @@ impl<'a> Adventure<'a> {
     fn make_links(
         config: &'a Script,
         id: &'a str,
-        info: &'a config::Page,
+        info: &'a script::Page,
     ) -> Result<Vec<PageLink<'a>>, Error> {
         let mut links = Vec::with_capacity(info.links.len());
 
