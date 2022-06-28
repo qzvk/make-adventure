@@ -7,6 +7,12 @@ pub enum Error {
     /// Failed to parse the config file.
     ParseConfig(toml::de::Error),
 
+    /// Failed to read the script file to a string.
+    ReadScript(std::io::Error),
+
+    /// Failed to parse the script.
+    ParseScript(toml::de::Error),
+
     /// Failed to create output directory.
     Directory(std::io::Error),
 
@@ -31,6 +37,8 @@ impl std::fmt::Display for Error {
         match self {
             Error::ReadConfig(e) => write!(f, "Failed to read config file: {e}"),
             Error::ParseConfig(e) => write!(f, "Failed to parse config file: {e}"),
+            Error::ReadScript(e) => write!(f, "Failed to read script file: {e}"),
+            Error::ParseScript(e) => write!(f, "Failed to parse script file: {e}"),
             Error::Directory(e) => write!(f, "Failed to create output directory: {e}"),
             Error::ReadTemplate(e) => write!(f, "Failed to read template file: {e}"),
             Error::BadTemplate(e) => write!(f, "Failed parse template file: {e}"),

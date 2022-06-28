@@ -5,6 +5,7 @@ mod error;
 
 use crate::{adventure::Adventure, args::Args, config::Config, error::Error};
 use clap::Parser;
+use config::Script;
 use handlebars::Handlebars;
 use std::{path::PathBuf, process::ExitCode};
 
@@ -13,6 +14,12 @@ fn get_config(args: &Args) -> Result<Config, Error> {
     let string = std::fs::read_to_string(&args.config).map_err(Error::ReadConfig)?;
     let config = toml::from_str(&string).map_err(Error::ParseConfig)?;
     Ok(config)
+}
+
+fn get_script(config: &Config) -> Result<Script, Error> {
+    let string = std::fs::read_to_string(&config.script).map_err(Error::ReadScript)?;
+    let script = toml::from_str(&string).map_err(Error::ParseScript)?;
+    Ok(script)
 }
 
 /// Create the output directory (if it does not already exist).
@@ -74,12 +81,13 @@ fn copy_additional_files(args: &Args, config: &Config) -> Result<(), Error> {
 fn run() -> Result<(), Error> {
     let args = Args::parse();
     let config = get_config(&args)?;
+    let script = get_script(&config)?;
 
     create_output_dir(&args)?;
 
     let handlebars = create_handlebars(&config)?;
 
-    let adventure = Adventure::new(&config).map_err(Error::Adventure)?;
+    let adventure = Adventure::new(&script).map_err(Error::Adventure)?;
 
     for (index, page) in adventure.pages.iter().enumerate() {
         generate_page(&args, &handlebars, index, page)?;

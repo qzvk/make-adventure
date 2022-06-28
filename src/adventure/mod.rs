@@ -1,6 +1,6 @@
 pub mod error;
 
-use crate::config::{self, Config};
+use crate::config::{self, Script};
 use error::Error;
 use serde::Serialize;
 
@@ -26,11 +26,11 @@ pub struct Adventure<'a> {
 }
 
 impl<'a> Adventure<'a> {
-    pub fn new(config: &'a Config) -> Result<Self, Error> {
-        let mut pages = Vec::with_capacity(config.pages.len());
+    pub fn new(script: &'a Script) -> Result<Self, Error> {
+        let mut pages = Vec::with_capacity(script.pages.len());
 
-        for (id, info) in &config.pages {
-            let page = Self::make_page(config, id, info)?;
+        for (id, info) in &script.pages {
+            let page = Self::make_page(script, id, info)?;
             pages.push(page);
         }
 
@@ -38,7 +38,7 @@ impl<'a> Adventure<'a> {
     }
 
     fn make_page(
-        config: &'a Config,
+        config: &'a Script,
         id: &'a str,
         info: &'a config::Page,
     ) -> Result<Page<'a>, Error> {
@@ -52,7 +52,7 @@ impl<'a> Adventure<'a> {
     }
 
     fn make_links(
-        config: &'a Config,
+        config: &'a Script,
         id: &'a str,
         info: &'a config::Page,
     ) -> Result<Vec<PageLink<'a>>, Error> {
@@ -68,7 +68,7 @@ impl<'a> Adventure<'a> {
         Ok(links)
     }
 
-    fn find_page_index(config: &'a Config, expected_id: &'a str) -> Option<usize> {
+    fn find_page_index(config: &'a Script, expected_id: &'a str) -> Option<usize> {
         for (index, (id, _)) in config.pages.iter().enumerate() {
             if id == expected_id {
                 // Indices are offset by one, since they are meant to be read by humans.
