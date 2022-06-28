@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+pub mod parse;
+
 /// A single page of the adventure.
 #[derive(Debug)]
 pub struct Page {
@@ -21,26 +23,17 @@ pub struct Script {
 }
 
 impl TryFrom<&str> for Script {
-    type Error = ParseError;
+    type Error = parse::Error;
 
+    #[inline]
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Script::new(value)
     }
 }
 
 impl Script {
-    pub fn new(_string: &str) -> Result<Self, ParseError> {
-        todo!()
+    #[inline]
+    pub fn new(string: &str) -> Result<Self, parse::Error> {
+        parse::parse(string)
     }
 }
-
-#[derive(Debug)]
-pub enum ParseError {}
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Ok(())
-    }
-}
-
-impl std::error::Error for ParseError {}
