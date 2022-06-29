@@ -24,9 +24,9 @@ impl DirectiveKind {
     pub fn from_str(string: &str) -> Option<Self> {
         match string {
             "page" => Some(DirectiveKind::Page),
-            "pitle" => Some(DirectiveKind::Title),
-            "pext" => Some(DirectiveKind::Text),
-            "pink" => Some(DirectiveKind::Link),
+            "title" => Some(DirectiveKind::Title),
+            "text" => Some(DirectiveKind::Text),
+            "link" => Some(DirectiveKind::Link),
             _ => None,
         }
     }
@@ -35,14 +35,13 @@ impl DirectiveKind {
 #[derive(Debug)]
 struct Command<'a> {
     command: PlainCommand<'a>,
-    line: usize,
     indent_level: usize,
 }
 
 impl<'a> Command<'a> {
     /// Parse a line into a command. This can succeed and return a command, succeed and return
     /// nothing (empty lines), or fail and return an error.
-    pub fn parse(line: &'a str, line_number: usize) -> Result<Option<Self>, Error> {
+    pub fn parse(line: &'a str) -> Result<Option<Self>, Error> {
         let (indent_level, command) = Self::take_whitespace(line)?;
 
         let (word, rest) = Self::take_word(command);
@@ -62,7 +61,6 @@ impl<'a> Command<'a> {
 
         Ok(Some(Self {
             command: plain_command,
-            line: line_number,
             indent_level,
         }))
     }
@@ -120,12 +118,20 @@ struct Commands<'a> {
 }
 
 impl<'a> Iterator for Commands<'a> {
-    type Item = Result<Option<Command<'a>>, Error>;
+    type Item = (usize, Result<Command<'a>, Error>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (index, line) = self.lines.next()?;
-        let command = Command::parse(line, index);
-        Some(command)
+        while let Some((index, line)) = self.lines.next() {
+            let command = Command::parse(line);
+
+            match command {
+                Ok(Some(c)) => return Some((index, Ok(c))),
+                Err(e) => return Some((index, Err(e))),
+                _ => {}
+            };
+        }
+
+        None
     }
 }
 
@@ -141,11 +147,7 @@ pub fn parse(input: &str) -> Result<Script, Error> {
     let commands = Commands::new(input.lines());
 
     for command in commands {
-        match command {
-            Ok(Some(c)) => println!("{c:?}"),
-            Ok(None) => {}
-            Err(e) => println!("{e:?}"),
-        }
+        println!("{command:?}");
     }
 
     todo!()
