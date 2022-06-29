@@ -121,7 +121,7 @@ impl<'a> Iterator for Commands<'a> {
     type Item = (usize, Result<Command<'a>, Error>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((index, line)) = self.lines.next() {
+        for (index, line) in self.lines.by_ref() {
             let command = Command::parse(line);
 
             match command {
@@ -144,11 +144,24 @@ impl<'a> Commands<'a> {
 }
 
 pub fn parse(input: &str) -> Result<Script, Error> {
-    let commands = Commands::new(input.lines());
+    let lines = input.lines();
+    let commands_and_errors = Commands::new(lines);
+
+    let mut errors = Vec::new();
+
+    let commands = commands_and_errors.filter_map(|(line, next)| match next {
+        Ok(c) => Some((line, c)),
+        Err(e) => {
+            errors.push((line, e));
+            None
+        }
+    });
 
     for command in commands {
         println!("{command:?}");
     }
+
+    println!("{errors:?}");
 
     todo!()
 }
