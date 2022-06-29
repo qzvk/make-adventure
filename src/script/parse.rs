@@ -189,17 +189,23 @@ pub fn parse(input: &str) -> Result<Script, Error> {
 }
 
 #[derive(Debug)]
+struct InternalBlock<'a> {
+    line: usize,
+    kind: DirectiveKind,
+    argument: &'a str,
+    children: Vec<Block<'a>>,
+}
+
+#[derive(Debug)]
+struct ExternalBlock<'a> {
+    line: usize,
+    text: &'a str,
+}
+
+#[derive(Debug)]
 enum Block<'a> {
-    Internal {
-        line: usize,
-        kind: DirectiveKind,
-        argument: &'a str,
-        children: Vec<Block<'a>>,
-    },
-    External {
-        line: usize,
-        text: &'a str,
-    },
+    Internal(InternalBlock<'a>),
+    External(ExternalBlock<'a>),
 }
 
 impl<'a> Block<'a> {
@@ -209,6 +215,24 @@ impl<'a> Block<'a> {
         I: Iterator<Item = (usize, Command<'a>)>,
     {
         Self::new_indented(0, commands)
+    }
+
+    fn internal(
+        line: usize,
+        kind: DirectiveKind,
+        argument: &'a str,
+        children: Vec<Block<'a>>,
+    ) -> Self {
+        Self::Internal(InternalBlock {
+            line,
+            kind,
+            argument,
+            children,
+        })
+    }
+
+    fn external(line: usize, text: &'a str) -> Self {
+        Self::External(ExternalBlock { line, text })
     }
 
     fn new_indented<I>(
@@ -240,19 +264,16 @@ impl<'a> Block<'a> {
             match command.command {
                 PlainCommand::Directive { kind, argument } => {
                     match Self::new_indented(indent + 1, commands) {
-                        Ok(children) => blocks.push(Block::Internal {
-                            line,
-                            kind,
-                            argument,
-                            children,
-                        }),
+                        Ok(children) => {
+                            blocks.push(Block::internal(line, kind, argument, children))
+                        }
                         Err(new_errors) => {
                             errors.extend(new_errors);
                         }
                     }
                 }
                 PlainCommand::Text { raw } => {
-                    blocks.push(Block::External { line, text: raw });
+                    blocks.push(Block::external(line, raw));
                 }
             }
         }
