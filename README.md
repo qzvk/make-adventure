@@ -92,9 +92,59 @@ Provided variables are:
 
 The script file contains all of the user-facing content for an adventure, and uses a simple Python-like language to describe each page, and links between them.
 
-I haven't written the parser for it yet, and until then, I'll leave this section incomplete.
+Each line may either be blank, a comment, a directive or text.
 
-**TODO**
+Blank lines (containing only whitespace) and comments (starting with any amount of whitespace and then two hyphens (`--`)) are ignored, and have no effect on the surrounding lines.
+
+### Directives
+
+A directive is a line starting with a keyword, followed by an argument. Usable keywords are:
+
+- `page`, for declaring pages.
+- `title`, for setting the title of a page.
+- `text`, for adding paragraphs of text to a page.
+- `link`, for adding links between pages.
+
+Any text which follows the keyword is considered its argument. For example:
+
+```
+page any-old-string
+```
+
+Would be a directive of kind `page`, with argument `any-old-string`.
+
+To add additional information to a directive, further *indented* directives can follow it, so:
+
+```
+page My Page
+    title
+        The title of the page.
+
+```
+
+Declares a `page` directive (with argument `My Page`) to have a child directive of kind `title`. Which, in turn, has chlid *text*.
+
+### Text lines
+
+Any line which is not empty, a comment, or a directive, is considered a *text* line. These are used to actually provide the script with text.
+
+### Example
+
+```
+page end-of-game
+    title
+        You are dead.
+
+    text
+        After falling through a trap door, you have landed in a trap and died.
+
+        Game over.
+
+    link start
+        START OVER
+```
+
+This, for example, would declare a page identified by `end-of-game`, with a title "You are dead.", and with two paragraphs of text ("After falling through..." and "Game over."), and one link to a `start` page with link text "START OVER".
 
 ## To-dos
 
