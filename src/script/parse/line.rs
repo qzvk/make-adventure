@@ -2,7 +2,7 @@ use std::iter::Enumerate;
 
 use super::Error;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum DirectiveKind {
     Page,
     Title,
@@ -18,6 +18,17 @@ impl DirectiveKind {
             "link" => Some(Self::Link),
             "text" => Some(Self::Text),
             _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for DirectiveKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DirectiveKind::Page => write!(f, "page"),
+            DirectiveKind::Title => write!(f, "title"),
+            DirectiveKind::Link => write!(f, "link"),
+            DirectiveKind::Text => write!(f, "text"),
         }
     }
 }

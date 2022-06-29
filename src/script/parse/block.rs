@@ -7,9 +7,9 @@ use super::{
 
 #[derive(Debug, PartialEq)]
 pub struct InternalBlock<'a> {
-    kind: DirectiveKind,
-    argument: Option<&'a str>,
-    children: Vec<Block<'a>>,
+    pub kind: DirectiveKind,
+    pub argument: Option<&'a str>,
+    pub children: Vec<Block<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -20,8 +20,8 @@ pub enum BlockKind<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct Block<'a> {
-    line: usize,
-    kind: BlockKind<'a>,
+    pub line: usize,
+    pub kind: BlockKind<'a>,
 }
 
 impl<'a> Block<'a> {

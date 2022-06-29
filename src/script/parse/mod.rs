@@ -1,6 +1,7 @@
 mod block;
 mod error;
 mod line;
+mod page_block;
 
 use self::{
     block::Block,
@@ -32,9 +33,7 @@ fn string_to_lines(string: &str) -> Result<Vec<(usize, Line)>> {
 }
 
 fn lines_to_blocks(lines: Vec<(usize, Line)>) -> Result<Vec<Block>> {
-    let result = Block::parse(lines)?;
-    println!("{result:?}");
-    todo!()
+    Block::parse(lines)
 }
 
 fn blocks_to_page_blocks(blocks: Vec<Block>) -> Result<Vec<PageBlock>> {
