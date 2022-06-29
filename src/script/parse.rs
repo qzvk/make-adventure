@@ -146,102 +146,128 @@ impl<'a> Commands<'a> {
     }
 }
 
-#[derive(Debug)]
-struct Page<'a> {
-    name: &'a str,
-}
-
-struct Pages<'a, I>
-where
-    I: Iterator<Item = (usize, Command<'a>)>,
-{
-    commands: Peekable<I>,
-}
-
-impl<'a, I> Pages<'a, I>
-where
-    I: Iterator<Item = (usize, Command<'a>)>,
-{
-    pub fn new(commands: I) -> Self {
-        Self {
-            commands: commands.peekable(),
-        }
-    }
-}
-
-impl<'a, I> Iterator for Pages<'a, I>
-where
-    I: Iterator<Item = (usize, Command<'a>)>,
-{
-    type Item = Result<Page<'a>, (usize, Error)>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let (line, command) = self.commands.next()?;
-
-        // A top-level command has to have zero indentation.
-        if command.indent_level != 0 {
-            return Some(Err((
-                line,
-                Error::UnexpectedIndenation {
-                    expected: 0,
-                    found: command.indent_level,
-                },
-            )));
-        }
-
-        // A top-level command has to be a directive.
-        let (kind, name) = match command.command {
-            PlainCommand::Directive { kind, argument } => (kind, argument),
-            PlainCommand::Text { .. } => return Some(Err((line, Error::TopLevelTextCommand))),
-        };
-
-        // A top-level directive has to be a page directive.
-        if kind != DirectiveKind::Page {
-            return Some(Err((line, Error::TopLevelNonPageDirective)));
-        }
-
-        // A page cannot have an empty name.
-        if name.is_empty() {
-            return Some(Err((line, Error::EmptyPageName)));
-        }
-
-        // TODO: Parse subsequent lines until we see something with indentation == 0.
-
-        Some(Ok(Page { name }))
-    }
-}
-
 pub fn parse(input: &str) -> Result<Script, Error> {
     let lines = input.lines();
     let commands_and_errors = Commands::new(lines);
 
     let mut errors = Vec::new();
 
-    let commands = commands_and_errors.filter_map(|(line, next)| match next {
-        Ok(c) => Some((line, c)),
-        Err(e) => {
-            errors.push((line, e));
-            None
+    let mut commands = commands_and_errors
+        .filter_map(|(line, next)| match next {
+            Ok(c) => Some((line, c)),
+            Err(e) => {
+                errors.push((line, e));
+                None
+            }
+        })
+        .peekable();
+
+    let blocks = Block::new(&mut commands);
+
+    if !errors.is_empty() {
+        println!("Command errors");
+        for (line, error) in &errors {
+            println!("    [{line}] {error:?}");
         }
-    });
-
-    let pages = Pages::new(commands);
-
-    for page in pages {
-        println!("{page:?}");
     }
 
-    println!("{errors:?}");
+    if let Err(block_errors) = &blocks {
+        println!("Block errors");
+        for (_line, error) in block_errors {
+            println!("    {error:?}");
+        }
+    }
+
+    if let Ok(blocks) = blocks {
+        println!("Blocks");
+        for block in blocks {
+            println!("    {block:?}");
+        }
+    }
 
     todo!()
 }
 
 #[derive(Debug)]
+enum Block<'a> {
+    Internal {
+        line: usize,
+        kind: DirectiveKind,
+        argument: &'a str,
+        children: Vec<Block<'a>>,
+    },
+    External {
+        line: usize,
+        text: &'a str,
+    },
+}
+
+impl<'a> Block<'a> {
+    #[inline]
+    pub fn new<I>(commands: &mut Peekable<I>) -> Result<Vec<Block<'a>>, Vec<(usize, Error)>>
+    where
+        I: Iterator<Item = (usize, Command<'a>)>,
+    {
+        Self::new_indented(0, commands)
+    }
+
+    fn new_indented<I>(
+        indent: usize,
+        commands: &mut Peekable<I>,
+    ) -> Result<Vec<Block<'a>>, Vec<(usize, Error)>>
+    where
+        I: Iterator<Item = (usize, Command<'a>)>,
+    {
+        let mut errors = Vec::new();
+        let mut blocks = Vec::new();
+
+        // Consume commands that are at least the current indent level.
+        while let Some((line, command)) =
+            commands.next_if(|(_, command)| command.indent_level >= indent)
+        {
+            // If something is _too_ indented, report an error.
+            if command.indent_level > indent {
+                errors.push((
+                    line,
+                    Error::UnexpectedIndenation {
+                        expected: indent,
+                        found: command.indent_level,
+                    },
+                ));
+                continue;
+            }
+
+            match command.command {
+                PlainCommand::Directive { kind, argument } => {
+                    match Self::new_indented(indent + 1, commands) {
+                        Ok(children) => blocks.push(Block::Internal {
+                            line,
+                            kind,
+                            argument,
+                            children,
+                        }),
+                        Err(new_errors) => {
+                            errors.extend(new_errors);
+                        }
+                    }
+                }
+                PlainCommand::Text { raw } => {
+                    blocks.push(Block::External { line, text: raw });
+                }
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(blocks)
+        } else {
+            Err(errors)
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum Error {
     UnexpectedIndenation { expected: usize, found: usize },
-    TopLevelTextCommand,
-    TopLevelNonPageDirective,
-    EmptyPageName,
     InvalidIndentation { count: usize },
 }
 
