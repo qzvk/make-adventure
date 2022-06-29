@@ -11,7 +11,7 @@ pub enum Error {
     ReadScript(std::io::Error),
 
     /// Failed to parse the script.
-    ParseScript(crate::script::parse::Error),
+    ParseScript(Vec<(usize, crate::script::parse::Error)>),
 
     /// Failed to create output directory.
     Directory(std::io::Error),
@@ -38,7 +38,13 @@ impl std::fmt::Display for Error {
             Error::ReadConfig(e) => write!(f, "Failed to read config file: {e}"),
             Error::ParseConfig(e) => write!(f, "Failed to parse config file: {e}"),
             Error::ReadScript(e) => write!(f, "Failed to read script file: {e}"),
-            Error::ParseScript(e) => write!(f, "Failed to parse script file: {e}"),
+            Error::ParseScript(errors) => {
+                writeln!(f, "Failed to parse script file:")?;
+                for (line, error) in errors {
+                    writeln!(f, "Line {line}: {error}")?;
+                }
+                Ok(())
+            }
             Error::Directory(e) => write!(f, "Failed to create output directory: {e}"),
             Error::ReadTemplate(e) => write!(f, "Failed to read template file: {e}"),
             Error::BadTemplate(e) => write!(f, "Failed parse template file: {e}"),

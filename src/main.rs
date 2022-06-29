@@ -19,7 +19,7 @@ fn get_config(args: &Args) -> Result<Config, Error> {
 
 fn get_script(config: &Config) -> Result<Script, Error> {
     let string = std::fs::read_to_string(&config.script).map_err(Error::ReadScript)?;
-    Script::try_from(string.as_ref()).map_err(Error::ParseScript)
+    Script::new(string.as_ref()).map_err(Error::ParseScript)
 }
 
 /// Create the output directory (if it does not already exist).
