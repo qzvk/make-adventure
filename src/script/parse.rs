@@ -1,7 +1,10 @@
 use super::Script;
-use std::{iter::Enumerate, str::Lines};
+use std::{
+    iter::{Enumerate, Peekable},
+    str::Lines,
+};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum DirectiveKind {
     Page,
     Title,
@@ -143,6 +146,71 @@ impl<'a> Commands<'a> {
     }
 }
 
+#[derive(Debug)]
+struct Page<'a> {
+    name: &'a str,
+}
+
+struct Pages<'a, I>
+where
+    I: Iterator<Item = (usize, Command<'a>)>,
+{
+    commands: Peekable<I>,
+}
+
+impl<'a, I> Pages<'a, I>
+where
+    I: Iterator<Item = (usize, Command<'a>)>,
+{
+    pub fn new(commands: I) -> Self {
+        Self {
+            commands: commands.peekable(),
+        }
+    }
+}
+
+impl<'a, I> Iterator for Pages<'a, I>
+where
+    I: Iterator<Item = (usize, Command<'a>)>,
+{
+    type Item = Result<Page<'a>, (usize, Error)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (line, command) = self.commands.next()?;
+
+        // A top-level command has to have zero indentation.
+        if command.indent_level != 0 {
+            return Some(Err((
+                line,
+                Error::UnexpectedIndenation {
+                    expected: 0,
+                    found: command.indent_level,
+                },
+            )));
+        }
+
+        // A top-level command has to be a directive.
+        let (kind, name) = match command.command {
+            PlainCommand::Directive { kind, argument } => (kind, argument),
+            PlainCommand::Text { .. } => return Some(Err((line, Error::TopLevelTextCommand))),
+        };
+
+        // A top-level directive has to be a page directive.
+        if kind != DirectiveKind::Page {
+            return Some(Err((line, Error::TopLevelNonPageDirective)));
+        }
+
+        // A page cannot have an empty name.
+        if name.is_empty() {
+            return Some(Err((line, Error::EmptyPageName)));
+        }
+
+        // TODO: Parse subsequent lines until we see something with indentation == 0.
+
+        Some(Ok(Page { name }))
+    }
+}
+
 pub fn parse(input: &str) -> Result<Script, Error> {
     let lines = input.lines();
     let commands_and_errors = Commands::new(lines);
@@ -157,8 +225,10 @@ pub fn parse(input: &str) -> Result<Script, Error> {
         }
     });
 
-    for command in commands {
-        println!("{command:?}");
+    let pages = Pages::new(commands);
+
+    for page in pages {
+        println!("{page:?}");
     }
 
     println!("{errors:?}");
@@ -168,6 +238,10 @@ pub fn parse(input: &str) -> Result<Script, Error> {
 
 #[derive(Debug)]
 pub enum Error {
+    UnexpectedIndenation { expected: usize, found: usize },
+    TopLevelTextCommand,
+    TopLevelNonPageDirective,
+    EmptyPageName,
     InvalidIndentation { count: usize },
 }
 
