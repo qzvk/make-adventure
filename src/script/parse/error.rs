@@ -13,6 +13,7 @@ pub enum Error {
     ExcessivePageTitles { page: String },
     UnexpectedText,
     NestedPage { parent: String, child: String },
+    NonPageTopLevelBlock,
 }
 
 impl Error {
@@ -103,6 +104,9 @@ impl std::fmt::Display for Error {
             Error::UnexpectedText => write!(f, "Unexpected text."),
             Error::NestedPage { parent, child } => {
                 write!(f, "Page {child:?} is nested inside of {parent:?}.")
+            }
+            Error::NonPageTopLevelBlock => {
+                write!(f, "Only pages are allowed as top-level directives.")
             }
         }
     }

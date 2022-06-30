@@ -1,12 +1,12 @@
 mod block;
 mod error;
 mod line;
-mod page_block;
+mod page;
 
 use self::{
     block::Block,
     line::{Line, Lines},
-    page_block::PageBlock,
+    page::PageBlock,
 };
 use super::{Page, Script};
 pub use error::Error;
@@ -35,34 +35,28 @@ fn lines_to_blocks(lines: Vec<(usize, Line)>) -> Result<Vec<Block>> {
     Block::parse(lines)
 }
 
-fn blocks_to_page_blocks(blocks: Vec<Block>) -> Result<Vec<PageBlock>> {
-    let mut page_blocks = Vec::with_capacity(blocks.len());
+fn blocks_to_pages(blocks: Vec<Block>) -> Result<Vec<Page>> {
+    let mut pages = Vec::with_capacity(blocks.len());
     let mut errors = Vec::new();
 
     for block in blocks {
         match PageBlock::parse(block) {
-            Ok((_, o)) => page_blocks.push(o),
+            Ok((_, PageBlock::Page(page))) => pages.push(page),
+            Ok((n, _)) => errors.push((n, Error::NonPageTopLevelBlock)),
             Err(e) => errors.extend(e),
         }
     }
 
     if errors.is_empty() {
-        println!("{page_blocks:#?}");
-        Ok(page_blocks)
+        Ok(pages)
     } else {
-        println!("{errors:#?}");
         Err(errors)
     }
-}
-
-fn page_blocks_to_pages(_page_blocks: Vec<PageBlock>) -> Result<Vec<Page>> {
-    todo!()
 }
 
 pub fn parse(input: &str) -> Result<Script> {
     let lines = string_to_lines(input)?;
     let blocks = lines_to_blocks(lines)?;
-    let page_blocks = blocks_to_page_blocks(blocks)?;
-    let pages = page_blocks_to_pages(page_blocks)?;
+    let pages = blocks_to_pages(blocks)?;
     Ok(Script { pages })
 }

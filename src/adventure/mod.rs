@@ -15,7 +15,7 @@ pub struct PageLink<'a> {
 #[derive(Debug, Serialize)]
 pub struct Page<'a> {
     pub title: &'a str,
-    pub paragraphs: &'a Vec<String>,
+    pub paragraphs: &'a Vec<&'a str>,
     pub links: Vec<PageLink<'a>>,
 }
 
@@ -30,30 +30,44 @@ impl<'a> Adventure<'a> {
         let mut pages = Vec::with_capacity(script.pages.len());
 
         for page in &script.pages {
-            let page = Self::make_page(page)?;
+            let page = Self::make_page(script, page)?;
             pages.push(page);
         }
 
         Ok(Self { pages })
     }
 
-    fn make_page(page: &'a script::Page) -> Result<Page<'a>, Error> {
-        let links = Self::make_links(page)?;
+    fn make_page(script: &'a Script, page: &'a script::Page) -> Result<Page<'a>, Error> {
+        let links = Self::make_links(script, page)?;
 
         Ok(Page {
-            title: page.title.as_str(),
+            title: page.title,
             paragraphs: &page.paragraphs,
             links,
         })
     }
 
-    fn make_links(page: &'a script::Page) -> Result<Vec<PageLink<'a>>, Error> {
-        let mut links = Vec::with_capacity(page.links.len());
+    fn make_links(script: &'a Script, info: &'a script::Page) -> Result<Vec<PageLink<'a>>, Error> {
+        let mut links = Vec::with_capacity(info.links.len());
 
-        for (text, &index) in &page.links {
+        for (destination, text) in &info.links {
+            let index = Self::find_page_index(script, destination)
+                .ok_or_else(|| Error::bad_reference(info.identifier, destination))?;
+
             links.push(PageLink { index, text });
         }
 
         Ok(links)
+    }
+
+    fn find_page_index(script: &'a Script, expected: &'a str) -> Option<usize> {
+        for (index, page) in script.pages.iter().enumerate() {
+            if page.identifier == expected {
+                // Indices are offset by one, since they are meant to be read by humans.
+                return Some(index + 1);
+            }
+        }
+
+        None
     }
 }

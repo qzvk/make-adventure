@@ -1,3 +1,5 @@
+use crate::script::Page;
+
 use super::{
     block::{BlockKind, InternalBlock},
     line::DirectiveKind,
@@ -9,12 +11,7 @@ pub enum PageBlock<'a> {
     Title(&'a str),
     Link(&'a str, &'a str),
     Text(Vec<&'a str>),
-    Page {
-        identifier: &'a str,
-        title: &'a str,
-        text: Vec<&'a str>,
-        links: Vec<(&'a str, &'a str)>,
-    },
+    Page(Page<'a>),
 }
 
 impl<'a> PageBlock<'a> {
@@ -48,22 +45,22 @@ impl<'a> PageBlock<'a> {
     ) -> Result<(usize, PageBlock<'a>), Vec<(usize, Error)>> {
         let mut errors = Vec::new();
 
-        let page_identifier = argument.unwrap_or_else(|| {
+        let identifier = argument.unwrap_or_else(|| {
             errors.push(Error::missing_argument(line, DirectiveKind::Page));
             "{unnamed}"
         });
 
         let mut titles = Vec::with_capacity(1);
-        let mut text = Vec::new();
+        let mut paragraphs = Vec::new();
         let mut links = Vec::new();
 
         for child in children {
             match Self::parse(child) {
                 Ok((_, PageBlock::Title(title))) => titles.push(title),
-                Ok((_, PageBlock::Text(new_text))) => text.extend(new_text),
+                Ok((_, PageBlock::Text(text))) => paragraphs.extend(text),
                 Ok((_, PageBlock::Link(target, text))) => links.push((target, text)),
-                Ok((line, PageBlock::Page { identifier, .. })) => {
-                    errors.push(Error::nested_page(line, page_identifier, identifier))
+                Ok((line, PageBlock::Page(page))) => {
+                    errors.push(Error::nested_page(line, identifier, page.identifier))
                 }
                 Err(new_errors) => errors.extend(new_errors),
             }
@@ -71,23 +68,23 @@ impl<'a> PageBlock<'a> {
 
         let title = match titles.as_slice() {
             [] => {
-                errors.push(Error::page_missing_title(line, page_identifier));
+                errors.push(Error::page_missing_title(line, identifier));
                 "{untitled}"
             }
             [t] => t,
             [first, ..] => {
-                errors.push(Error::excessive_page_titles(line, page_identifier));
+                errors.push(Error::excessive_page_titles(line, identifier));
                 first
             }
         };
 
         if errors.is_empty() {
-            let page = PageBlock::Page {
-                identifier: page_identifier,
+            let page = PageBlock::Page(Page {
+                identifier,
                 title,
-                text,
+                paragraphs,
                 links,
-            };
+            });
             Ok((line, page))
         } else {
             Err(errors)
@@ -200,6 +197,8 @@ impl<'a> PageBlock<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::script::Page;
+
     use super::{Block, DirectiveKind, Error, PageBlock};
 
     #[test]
@@ -538,16 +537,16 @@ mod tests {
             (line, _) if line != 50 => panic!("Line number is wrong"),
             (
                 _,
-                PageBlock::Page {
+                PageBlock::Page(Page {
                     identifier,
                     title,
-                    text,
+                    paragraphs,
                     links,
-                },
+                }),
             ) => {
                 assert_eq!("almost-empty", identifier);
                 assert_eq!("I have a title!", title);
-                assert!(text.is_empty());
+                assert!(paragraphs.is_empty());
                 assert!(links.is_empty());
             }
             _ => panic!("Incorrect PageBlock variant!"),
@@ -592,21 +591,21 @@ mod tests {
             (line, _) if line != 0 => panic!("Line number is wrong"),
             (
                 _,
-                PageBlock::Page {
+                PageBlock::Page(Page {
                     identifier,
                     title,
-                    text,
+                    paragraphs,
                     links,
-                },
+                }),
             ) => {
                 assert_eq!("with-text", identifier);
                 assert_eq!("Title", title);
-                assert_eq!(5, text.len());
-                assert_eq!("first", text[0]);
-                assert_eq!("second", text[1]);
-                assert_eq!("third", text[2]);
-                assert_eq!("fourth", text[3]);
-                assert_eq!("fifth", text[4]);
+                assert_eq!(5, paragraphs.len());
+                assert_eq!("first", paragraphs[0]);
+                assert_eq!("second", paragraphs[1]);
+                assert_eq!("third", paragraphs[2]);
+                assert_eq!("fourth", paragraphs[3]);
+                assert_eq!("fifth", paragraphs[4]);
                 assert!(links.is_empty());
             }
             _ => panic!("Incorrect PageBlock variant!"),
@@ -663,19 +662,19 @@ mod tests {
             (line, _) if line != 0 => panic!("Line number is wrong"),
             (
                 _,
-                PageBlock::Page {
+                PageBlock::Page(Page {
                     identifier,
                     title,
-                    text,
+                    paragraphs,
                     links,
-                },
+                }),
             ) => {
                 assert_eq!("with-links", identifier);
                 assert_eq!("Title 2", title);
                 assert_eq!(2, links.len());
                 assert_eq!(("page-three", "Go to page three"), links[0]);
                 assert_eq!(("page-seven", "Go to page seven"), links[1]);
-                assert!(text.is_empty());
+                assert!(paragraphs.is_empty());
             }
             _ => panic!("Incorrect PageBlock variant!"),
         }

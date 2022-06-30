@@ -17,9 +17,12 @@ fn get_config(args: &Args) -> Result<Config, Error> {
     Ok(config)
 }
 
-fn get_script(config: &Config) -> Result<Script, Error> {
-    let string = std::fs::read_to_string(&config.script).map_err(Error::ReadScript)?;
-    Script::new(string.as_ref()).map_err(Error::ParseScript)
+fn get_script_source(config: &Config) -> Result<String, Error> {
+    std::fs::read_to_string(&config.script).map_err(Error::ReadScript)
+}
+
+fn get_script(source: &str) -> Result<Script, Error> {
+    Script::new(source).map_err(Error::ParseScript)
 }
 
 /// Create the output directory (if it does not already exist).
@@ -81,7 +84,8 @@ fn copy_additional_files(args: &Args, config: &Config) -> Result<(), Error> {
 fn run() -> Result<(), Error> {
     let args = Args::parse();
     let config = get_config(&args)?;
-    let script = get_script(&config)?;
+    let script_source = get_script_source(&config)?;
+    let script = get_script(&script_source)?;
 
     create_output_dir(&args)?;
 
