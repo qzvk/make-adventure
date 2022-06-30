@@ -7,24 +7,25 @@ enum PageBlock<'a> {
 
 impl<'a> PageBlock<'a> {
     pub fn parse(block: Block) -> Result<(usize, PageBlock), (usize, Error)> {
-        if let BlockKind::Internal(i) = block.kind {
-            if i.argument.is_some() {
-                Err((block.line, Error::UnexpectedTitleArgument))
-            } else {
-                match i.children.as_slice() {
-                    [] => Err((block.line, Error::MissingTitleText)),
-                    [child] => {
-                        if let BlockKind::External(text) = child.kind {
-                            Ok((block.line, PageBlock::Title(text)))
-                        } else {
-                            Err((child.line, Error::UnexpectedChildDirectiveOfTitle))
-                        }
-                    }
-                    [.., last] => Err((last.line, Error::ExcessiveTitleText)),
-                }
-            }
+        let internal = match block.kind {
+            BlockKind::Internal(i) => i,
+            _ => todo!(),
+        };
+
+        if internal.argument.is_some() {
+            return Err((block.line, Error::UnexpectedTitleArgument));
+        }
+
+        let child = match internal.children.as_slice() {
+            [] => return Err((block.line, Error::MissingTitleText)),
+            [child] => child,
+            [.., last] => return Err((last.line, Error::ExcessiveTitleText)),
+        };
+
+        if let BlockKind::External(text) = child.kind {
+            Ok((block.line, PageBlock::Title(text)))
         } else {
-            todo!()
+            Err((child.line, Error::UnexpectedChildDirectiveOfTitle))
         }
     }
 }
