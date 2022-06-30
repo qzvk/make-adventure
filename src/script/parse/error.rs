@@ -6,8 +6,10 @@ pub enum Error {
     UnexpectedIndenation { expected: usize, found: usize },
     MissingTitleText,
     UnexpectedTitleArgument,
-    ExcessiveTitleText,
-    UnexpectedChildDirectiveOfTitle,
+    ExcessiveChildCount { block: DirectiveKind },
+    UnexpectedChildDirective { block: DirectiveKind },
+    MissingLinkArgument,
+    MissingLinkText,
 }
 
 impl std::fmt::Display for Error {
@@ -23,17 +25,19 @@ impl std::fmt::Display for Error {
             ),
             Error::MissingTitleText => write!(f, "A title directive has no text for it."),
             Error::UnexpectedTitleArgument => {
-                write!(f, "A title declaration cannot have an argument.")
+                write!(f, "A title directive cannot have an argument.")
             }
-            Error::ExcessiveTitleText => {
-                write!(f, "Title declarations can only contain one line of text.")
+            Error::ExcessiveChildCount { block } => {
+                write!(f, "The {block} directive here expected a single child, but multiple were provided.")
             }
-            Error::UnexpectedChildDirectiveOfTitle => {
+            Error::UnexpectedChildDirective { block } => {
                 write!(
                     f,
-                    "Title declaraions can only contain text, not other directives."
+                    "The {block} directive can only contain text, not other directives."
                 )
             }
+            Error::MissingLinkArgument => write!(f, "Link directives require an argument."),
+            Error::MissingLinkText => write!(f, "Link directives require a line of text."),
         }
     }
 }
