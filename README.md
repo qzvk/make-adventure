@@ -1,6 +1,6 @@
 # make-adventure
 
-Personal static site generator tool for generating text adventure games.
+Personal-use static site generator tool for generating text adventure games.
 
 ## Table of Contents
 
@@ -154,8 +154,12 @@ I need to be able to add images to my pages, so specifying custom files for each
 
 ### Graphical front-end
 
-Unlikely to do this in the near future. Using a graphical interface will make managing complex storied easier, since ensuring links are correct in a text file is difficult and error prone.
+Unlikely to do this in the near future. Using a graphical interface will make managing complex stories easier, since ensuring links are correct in a text file can be difficult.
 
 ### Multiple files
 
 I'd like to be able to split the config files into multiple parts, so that I'm not staring at a single file the whole time I'm writing. Specifying a 'root' config, and then recursively including others would be very useful.
+
+### Documentation
+
+No doubt I'm going to forget about this for a few months before coming back to it. Some documentation would be nice for future me. ;)
