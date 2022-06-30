@@ -148,10 +148,6 @@ This, for example, would declare a page identified by `end-of-game`, with a titl
 
 ## To-dos
 
-### Remove zero-indexed line numbers.
-
-Currently, I'm using `usize` to record line numbers, zero-indexed. This will confuse users, so I should one-index, them, but this will confuse me, becuase `0` will be an unused value. I need to use `NonZeroU32` to record line numbers.
-
 ### Page-specific files
 
 I need to be able to add images to my pages, so specifying custom files for each page will be required. The files will be copied into the output directory, and have their paths passed to the templating system.
