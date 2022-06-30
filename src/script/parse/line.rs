@@ -66,6 +66,7 @@ impl<'a> Line<'a> {
         Ok(Some(Self { indent, kind }))
     }
 
+    #[allow(dead_code)]
     pub const fn new_text(indent: usize, text: &'a str) -> Self {
         Self {
             indent,
@@ -73,6 +74,7 @@ impl<'a> Line<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub const fn new_directive(indent: usize, kind: DirectiveKind, text: Option<&'a str>) -> Self {
         Self {
             indent,

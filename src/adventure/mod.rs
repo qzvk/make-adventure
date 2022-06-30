@@ -30,14 +30,14 @@ impl<'a> Adventure<'a> {
         let mut pages = Vec::with_capacity(script.pages.len());
 
         for page in &script.pages {
-            let page = Self::make_page(script, page)?;
+            let page = Self::make_page(page)?;
             pages.push(page);
         }
 
         Ok(Self { pages })
     }
 
-    fn make_page(config: &'a Script, page: &'a script::Page) -> Result<Page<'a>, Error> {
+    fn make_page(page: &'a script::Page) -> Result<Page<'a>, Error> {
         let links = Self::make_links(page)?;
 
         Ok(Page {
