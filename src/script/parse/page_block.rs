@@ -9,6 +9,7 @@ pub enum PageBlock<'a> {
         identifier: &'a str,
         title: &'a str,
         text: Vec<&'a str>,
+        links: Vec<(&'a str, &'a str)>,
     },
 }
 
@@ -49,12 +50,15 @@ impl<'a> PageBlock<'a> {
 
         let mut titles = Vec::with_capacity(1);
         let mut text = Vec::new();
+        let mut links = Vec::new();
 
         for child in children {
             match Self::parse(child) {
                 Ok((_, PageBlock::Title(title))) => titles.push(title),
                 Ok((_, PageBlock::Text(new_text))) => text.extend(new_text),
-                _ => {}
+                Ok((_, PageBlock::Link(target, text))) => links.push((target, text)),
+                Err(new_errors) => errors.extend(new_errors),
+                _ => todo!(),
             }
         }
 
@@ -87,6 +91,7 @@ impl<'a> PageBlock<'a> {
                     identifier,
                     title,
                     text,
+                    links,
                 },
             ))
         } else {
@@ -587,11 +592,13 @@ mod tests {
                     identifier,
                     title,
                     text,
+                    links,
                 },
             ) => {
                 assert_eq!("almost-empty", identifier);
                 assert_eq!("I have a title!", title);
                 assert!(text.is_empty());
+                assert!(links.is_empty());
             }
             _ => panic!("Incorrect PageBlock variant!"),
         }
@@ -639,6 +646,7 @@ mod tests {
                     identifier,
                     title,
                     text,
+                    links,
                 },
             ) => {
                 assert_eq!("with-text", identifier);
@@ -649,6 +657,75 @@ mod tests {
                 assert_eq!("third", text[2]);
                 assert_eq!("fourth", text[3]);
                 assert_eq!("fifth", text[4]);
+                assert!(links.is_empty());
+            }
+            _ => panic!("Incorrect PageBlock variant!"),
+        }
+    }
+
+    #[test]
+    fn inner_errors_are_reported() {
+        let input = Block::internal(
+            0,
+            DirectiveKind::Page,
+            Some("with-text"),
+            vec![Block::internal(1, DirectiveKind::Title, None, Vec::new())],
+        );
+
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert!(
+            matches!(&output[0], (1, Error::MissingText { block }) if *block == DirectiveKind::Title)
+        );
+    }
+
+    #[test]
+    fn can_collect_links_from_page() {
+        let input = Block::internal(
+            0,
+            DirectiveKind::Page,
+            Some("with-links"),
+            vec![
+                Block::internal(
+                    1,
+                    DirectiveKind::Title,
+                    None,
+                    vec![Block::external(2, "Title 2")],
+                ),
+                Block::internal(
+                    4,
+                    DirectiveKind::Link,
+                    Some("page-three"),
+                    vec![Block::external(5, "Go to page three")],
+                ),
+                Block::internal(
+                    8,
+                    DirectiveKind::Link,
+                    Some("page-seven"),
+                    vec![Block::external(7, "Go to page seven")],
+                ),
+            ],
+        );
+
+        let output = PageBlock::parse(input).unwrap();
+
+        match output {
+            (line, _) if line != 0 => panic!("Line number is wrong"),
+            (
+                _,
+                PageBlock::Page {
+                    identifier,
+                    title,
+                    text,
+                    links,
+                },
+            ) => {
+                assert_eq!("with-links", identifier);
+                assert_eq!("Title 2", title);
+                assert_eq!(2, links.len());
+                assert_eq!(("page-three", "Go to page three"), links[0]);
+                assert_eq!(("page-seven", "Go to page seven"), links[1]);
+                assert!(text.is_empty());
             }
             _ => panic!("Incorrect PageBlock variant!"),
         }
