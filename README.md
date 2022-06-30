@@ -94,7 +94,7 @@ The script file contains all of the user-facing content for an adventure, and us
 
 Each line may either be blank, a comment, a directive or text.
 
-Blank lines (containing only whitespace) and comments (starting with any amount of whitespace and then two hyphens (`--`)) are ignored, and have no effect on the surrounding lines.
+Blank lines (containing only whitespace) and comments (starting with any amount of whitespace and then a hash (`#`)) are ignored, and have no effect on the surrounding lines.
 
 ### Directives
 
@@ -148,13 +148,9 @@ This, for example, would declare a page identified by `end-of-game`, with a titl
 
 ## To-dos
 
-### Deterministic page numbers
+### Remove zero-indexed line numbers.
 
-Since serde is used for configuration parsing, and each page gets stored in a `HashMap`, the outputted page numbers are not consistent across builds. This is not desirable, since updates which only append or modify pages (and not re-arrange any) should not modify pre-existing page numbers. This makes 'saving your place' impossible, and also looks weird to a user, if they go from page 1 to 15 in one step, for example.
-
-### Better configuration language
-
-Currently, TOML is being used, which creates a lot of visual noise and doesn't feel like the correct choice. A different language should be used for writing and configuring pages. This will likely either be Markdown or a simple custom language.
+Currently, I'm using `usize` to record line numbers, zero-indexed. This will confuse users, so I should one-index, them, but this will confuse me, becuase `0` will be an unused value. I need to use `NonZeroU32` to record line numbers.
 
 ### Page-specific files
 
