@@ -1,116 +1,98 @@
-use super::{
-    block::{Block, BlockKind},
-    line::DirectiveKind,
-    Error,
-};
+use super::{block::BlockKind, line::DirectiveKind, Block, Error};
 
 #[derive(Debug)]
-pub struct PageBlock;
+enum PageBlock<'a> {
+    Title(&'a str),
+}
 
-impl PageBlock {
-    pub fn new(block: Block) -> Result<Self, Vec<Error>> {
-        let block = match block.kind {
-            BlockKind::External(_) => return Err(vec![Error::TextAtTopLevel]),
-            BlockKind::Internal(i) => i,
-        };
-
-        if block.kind != DirectiveKind::Page {
-            return Err(vec![Error::UnexpectedTopLevelDirective {
-                found: block.kind,
-            }]);
+impl<'a> PageBlock<'a> {
+    pub fn parse(block: Block) -> Result<(usize, PageBlock), (usize, Error)> {
+        if let BlockKind::Internal(i) = block.kind {
+            if i.argument.is_some() {
+                Err((block.line, Error::UnexpectedTitleArgument))
+            } else {
+                match i.children.as_slice() {
+                    [] => Err((block.line, Error::MissingTitleText)),
+                    [child] => {
+                        if let BlockKind::External(text) = child.kind {
+                            Ok((block.line, PageBlock::Title(text)))
+                        } else {
+                            Err((child.line, Error::UnexpectedChildDirectiveOfTitle))
+                        }
+                    }
+                    [.., last] => Err((last.line, Error::ExcessiveTitleText)),
+                }
+            }
+        } else {
+            todo!()
         }
-
-        // Now we know this is, at the very least, an actual page, we can start accumulating
-        // errors properly.
-        let mut errors = Vec::new();
-
-        if block.argument.is_none() {
-            errors.push(Error::MissingPageName);
-        }
-
-        if block.children.is_empty() {
-            errors.push(Error::MissingTitleDirective {
-                page: block.argument.unwrap_or("{unnamed}").to_owned(),
-            });
-        }
-
-        Err(errors)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{super::line::DirectiveKind, Block, Error, PageBlock};
+    use super::{Block, DirectiveKind, Error, PageBlock};
 
     #[test]
-    fn reports_top_level_text() {
-        let input = Block::external(15, "You're not supposed to be here.");
-        let output = PageBlock::new(input).unwrap_err();
+    fn title_block_cannot_be_empty() {
+        let input = Block::internal(2, DirectiveKind::Title, None, Vec::new());
 
-        assert_eq!(1, output.len());
-        assert!(matches!(output[0], Error::TextAtTopLevel));
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert!(matches!(output, (2, Error::MissingTitleText)));
     }
 
     #[test]
-    fn reports_top_level_title_directives() {
-        for directive in [
-            DirectiveKind::Link,
-            DirectiveKind::Text,
+    fn title_block_cannot_have_argument() {
+        let input = Block::internal(2, DirectiveKind::Title, Some("oh no!"), Vec::new());
+
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert!(matches!(output, (2, Error::UnexpectedTitleArgument)));
+    }
+
+    #[test]
+    fn title_block_cannot_have_multiple_children() {
+        let input = Block::internal(
+            2,
             DirectiveKind::Title,
-        ] {
-            let input = Block::internal(0, DirectiveKind::Title, None, Vec::new());
+            None,
+            vec![Block::external(3, "oh no"), Block::external(4, "oh no 2")],
+        );
 
-            let output = PageBlock::new(input).unwrap_err();
+        let output = PageBlock::parse(input).unwrap_err();
 
-            assert_eq!(1, output.len());
-            assert!(matches!(
-                output[0],
-                Error::UnexpectedTopLevelDirective { found } if found == DirectiveKind::Title
-            ));
-        }
+        assert!(matches!(output, (4, Error::ExcessiveTitleText)));
     }
 
     #[test]
-    fn reports_absent_title_directive() {
-        let input = Block::internal(0, DirectiveKind::Page, Some("My page!"), Vec::new());
+    fn title_block_cannot_have_non_text_children() {
+        let input = Block::internal(
+            2,
+            DirectiveKind::Title,
+            None,
+            vec![Block::internal(3, DirectiveKind::Title, None, Vec::new())],
+        );
 
-        let output = PageBlock::new(input).unwrap_err();
+        let output = PageBlock::parse(input).unwrap_err();
 
-        assert_eq!(1, output.len());
         assert!(matches!(
-            &output[0],
-            Error::MissingTitleDirective { page } if page == "My page!"
+            output,
+            (3, Error::UnexpectedChildDirectiveOfTitle)
         ));
     }
 
     #[test]
-    fn reports_absent_page_name() {
+    fn can_parse_valid_title_block() {
         let input = Block::internal(
-            0,
-            DirectiveKind::Page,
+            2,
+            DirectiveKind::Title,
             None,
-            vec![Block::internal(
-                1,
-                DirectiveKind::Title,
-                None,
-                vec![Block::external(2, "title text :(")],
-            )],
+            vec![Block::external(3, "hurrah!")],
         );
 
-        let output = PageBlock::new(input).unwrap_err();
+        let output = PageBlock::parse(input).unwrap();
 
-        assert_eq!(1, output.len());
-        assert!(matches!(&output[0], Error::MissingPageName));
-    }
-
-    #[test]
-    fn reports_missing_title_and_name() {
-        let input = Block::internal(0, DirectiveKind::Page, None, Vec::new());
-
-        let output = PageBlock::new(input).unwrap_err();
-
-        assert_eq!(2, output.len());
-        assert!(matches!(&output[0], Error::MissingPageName));
-        assert!(matches!(&output[1], Error::MissingTitleDirective { .. }));
+        assert!(matches!(output, (2, PageBlock::Title("hurrah!"))));
     }
 }

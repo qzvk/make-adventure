@@ -4,11 +4,10 @@ use super::line::DirectiveKind;
 pub enum Error {
     InvalidIndentation { count: usize },
     UnexpectedIndenation { expected: usize, found: usize },
-    TextAtTopLevel,
-    UnexpectedTopLevelDirective { found: DirectiveKind },
-    MissingTitleDirective { page: String },
-    MissingPageName,
-    MissingTitleText { page: String },
+    MissingTitleText,
+    UnexpectedTitleArgument,
+    ExcessiveTitleText,
+    UnexpectedChildDirectiveOfTitle,
 }
 
 impl std::fmt::Display for Error {
@@ -22,22 +21,17 @@ impl std::fmt::Display for Error {
                 f,
                 "Unexpected indentation, expected {expected}, but saw {found}."
             ),
-            Error::TextAtTopLevel => write!(
-                f,
-                "Unexpected text. Only page declarations are allowed at the top level."
-            ),
-            Error::UnexpectedTopLevelDirective { found } => write!(
-                f,
-                "Unexpected {found} directive. Only page declarations are allowed at the top level."
-            ),
-            Error::MissingTitleDirective { page } => {
-                write!(f, "The page {page:?} doesn't have a title.")
+            Error::MissingTitleText => write!(f, "A title directive has no text for it."),
+            Error::UnexpectedTitleArgument => {
+                write!(f, "A title declaration cannot have an argument.")
             }
-            Error::MissingPageName => write!(f, "The page was declared with no name."),
-            Error::MissingTitleText { page } => {
+            Error::ExcessiveTitleText => {
+                write!(f, "Title declarations can only contain one line of text.")
+            }
+            Error::UnexpectedChildDirectiveOfTitle => {
                 write!(
                     f,
-                    "The page {page:?} has a title directive, but no text for it."
+                    "Title declaraions can only contain text, not other directives."
                 )
             }
         }
