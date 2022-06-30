@@ -1,4 +1,8 @@
-use super::{block::BlockKind, line::DirectiveKind, Block, Error};
+use super::{
+    block::{BlockKind, InternalBlock},
+    line::DirectiveKind,
+    Block, Error,
+};
 
 #[derive(Debug)]
 pub enum PageBlock<'a> {
@@ -15,17 +19,26 @@ pub enum PageBlock<'a> {
 
 impl<'a> PageBlock<'a> {
     pub fn parse(block: Block<'a>) -> Result<(usize, PageBlock), Vec<(usize, Error)>> {
-        let internal = match block.kind {
-            BlockKind::Internal(i) => i,
-            BlockKind::External(_) => return Err(vec![(block.line, Error::UnexpectedText)]),
-        };
-
-        match internal.kind {
-            DirectiveKind::Page => Self::page(block.line, internal.argument, internal.children),
-            DirectiveKind::Title => Self::title(block.line, internal.argument, internal.children),
-            DirectiveKind::Link => Self::link(block.line, internal.argument, internal.children),
-            DirectiveKind::Text => Self::text(block.line, internal.argument, internal.children),
+        match block.kind {
+            BlockKind::Internal(internal) => Self::internal(block.line, internal),
+            BlockKind::External(_) => Self::external(block.line),
         }
+    }
+
+    fn internal(
+        line: usize,
+        block: InternalBlock<'a>,
+    ) -> Result<(usize, PageBlock), Vec<(usize, Error)>> {
+        match block.kind {
+            DirectiveKind::Page => Self::page(line, block.argument, block.children),
+            DirectiveKind::Title => Self::title(line, block.argument, block.children),
+            DirectiveKind::Link => Self::link(line, block.argument, block.children),
+            DirectiveKind::Text => Self::text(line, block.argument, block.children),
+        }
+    }
+
+    fn external(line: usize) -> Result<(usize, PageBlock<'a>), Vec<(usize, Error)>> {
+        Err(vec![(line, Error::UnexpectedText)])
     }
 
     fn page(
@@ -35,18 +48,10 @@ impl<'a> PageBlock<'a> {
     ) -> Result<(usize, PageBlock<'a>), Vec<(usize, Error)>> {
         let mut errors = Vec::new();
 
-        let page_identifier = match argument {
-            Some(s) => s,
-            None => {
-                errors.push((
-                    line,
-                    Error::MissingArgument {
-                        block: DirectiveKind::Page,
-                    },
-                ));
-                "{unnamed}"
-            }
-        };
+        let page_identifier = argument.unwrap_or_else(|| {
+            errors.push(Error::missing_argument(line, DirectiveKind::Page));
+            "{unnamed}"
+        });
 
         let mut titles = Vec::with_capacity(1);
         let mut text = Vec::new();
@@ -57,49 +62,33 @@ impl<'a> PageBlock<'a> {
                 Ok((_, PageBlock::Title(title))) => titles.push(title),
                 Ok((_, PageBlock::Text(new_text))) => text.extend(new_text),
                 Ok((_, PageBlock::Link(target, text))) => links.push((target, text)),
-                Ok((line, PageBlock::Page { identifier, .. })) => errors.push((
-                    line,
-                    Error::NestedPage {
-                        parent: page_identifier.to_owned(),
-                        child: identifier.to_owned(),
-                    },
-                )),
+                Ok((line, PageBlock::Page { identifier, .. })) => {
+                    errors.push(Error::nested_page(line, page_identifier, identifier))
+                }
                 Err(new_errors) => errors.extend(new_errors),
             }
         }
 
         let title = match titles.as_slice() {
             [] => {
-                errors.push((
-                    line,
-                    Error::PageMissingTitle {
-                        page: page_identifier.to_owned(),
-                    },
-                ));
+                errors.push(Error::page_missing_title(line, page_identifier));
                 "{untitled}"
             }
             [t] => t,
             [first, ..] => {
-                errors.push((
-                    line,
-                    Error::ExcessivePageTitles {
-                        page: page_identifier.to_owned(),
-                    },
-                ));
+                errors.push(Error::excessive_page_titles(line, page_identifier));
                 first
             }
         };
 
         if errors.is_empty() {
-            Ok((
-                line,
-                PageBlock::Page {
-                    identifier: page_identifier,
-                    title,
-                    text,
-                    links,
-                },
-            ))
+            let page = PageBlock::Page {
+                identifier: page_identifier,
+                title,
+                text,
+                links,
+            };
+            Ok((line, page))
         } else {
             Err(errors)
         }
@@ -113,34 +102,24 @@ impl<'a> PageBlock<'a> {
         let mut errors = Vec::new();
 
         if argument.is_some() {
-            errors.push((
-                line,
-                Error::UnexpectedArgument {
-                    block: DirectiveKind::Text,
-                },
-            ))
+            errors.push(Error::unexpected_argument(line, DirectiveKind::Text));
         }
 
         if children.is_empty() {
-            errors.push((
-                line,
-                Error::MissingText {
-                    block: DirectiveKind::Text,
-                },
-            ));
+            errors.push(Error::missing_text(line, DirectiveKind::Text));
         }
 
         let mut paragraphs = Vec::with_capacity(children.len());
 
         for child in children {
             match child.kind {
-                BlockKind::Internal(_) => errors.push((
-                    child.line,
-                    Error::UnexpectedChildDirective {
-                        block: DirectiveKind::Text,
-                    },
-                )),
-                BlockKind::External(text) => paragraphs.push(text),
+                BlockKind::Internal(_) => {
+                    let error = Error::unexpected_child_directive(child.line, DirectiveKind::Text);
+                    errors.push(error);
+                }
+                BlockKind::External(text) => {
+                    paragraphs.push(text);
+                }
             }
         }
 
@@ -159,45 +138,28 @@ impl<'a> PageBlock<'a> {
         let mut errors = Vec::new();
 
         if argument.is_none() {
-            errors.push((
-                line,
-                Error::MissingArgument {
-                    block: DirectiveKind::Link,
-                },
-            ));
+            errors.push(Error::missing_argument(line, DirectiveKind::Link));
         }
 
         let child = match children.as_slice() {
             [] => {
-                errors.push((
-                    line,
-                    Error::MissingText {
-                        block: DirectiveKind::Link,
-                    },
-                ));
+                errors.push(Error::missing_text(line, DirectiveKind::Link));
                 return Err(errors);
             }
             [child] => child,
-            [.., last] => {
-                errors.push((
-                    last.line,
-                    Error::ExcessiveChildCount {
-                        block: DirectiveKind::Link,
-                    },
-                ));
+            [_, second, ..] => {
+                let error = Error::excessive_child_count(second.line, DirectiveKind::Link);
+                errors.push(error);
                 return Err(errors);
             }
         };
 
         if let BlockKind::External(text) = child.kind {
-            Ok((line, PageBlock::Link(argument.unwrap(), text)))
+            let link = PageBlock::Link(argument.unwrap(), text);
+            Ok((line, link))
         } else {
-            errors.push((
-                child.line,
-                Error::UnexpectedChildDirective {
-                    block: DirectiveKind::Link,
-                },
-            ));
+            let error = Error::unexpected_child_directive(child.line, DirectiveKind::Link);
+            errors.push(error);
             Err(errors)
         }
     }
@@ -210,32 +172,18 @@ impl<'a> PageBlock<'a> {
         let mut errors = Vec::new();
 
         if argument.is_some() {
-            errors.push((
-                line,
-                Error::UnexpectedArgument {
-                    block: DirectiveKind::Title,
-                },
-            ));
+            errors.push(Error::unexpected_argument(line, DirectiveKind::Title));
         }
 
         let child = match children.as_slice() {
             [] => {
-                errors.push((
-                    line,
-                    Error::MissingText {
-                        block: DirectiveKind::Title,
-                    },
-                ));
+                errors.push(Error::missing_text(line, DirectiveKind::Title));
                 return Err(errors);
             }
             [child] => child,
-            [.., last] => {
-                errors.push((
-                    last.line,
-                    Error::ExcessiveChildCount {
-                        block: DirectiveKind::Title,
-                    },
-                ));
+            [_, second, ..] => {
+                let error = Error::excessive_child_count(second.line, DirectiveKind::Title);
+                errors.push(error);
                 return Err(errors);
             }
         };
@@ -243,12 +191,8 @@ impl<'a> PageBlock<'a> {
         if let BlockKind::External(text) = child.kind {
             Ok((line, PageBlock::Title(text)))
         } else {
-            errors.push((
-                child.line,
-                Error::UnexpectedChildDirective {
-                    block: DirectiveKind::Title,
-                },
-            ));
+            let error = Error::unexpected_child_directive(child.line, DirectiveKind::Title);
+            errors.push(error);
             Err(errors)
         }
     }

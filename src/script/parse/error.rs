@@ -15,6 +15,56 @@ pub enum Error {
     NestedPage { parent: String, child: String },
 }
 
+impl Error {
+    pub fn missing_argument(line: usize, block: DirectiveKind) -> (usize, Self) {
+        (line, Self::MissingArgument { block })
+    }
+
+    pub fn nested_page(line: usize, parent: &str, child: &str) -> (usize, Self) {
+        (
+            line,
+            Self::NestedPage {
+                parent: parent.to_owned(),
+                child: child.to_owned(),
+            },
+        )
+    }
+
+    pub fn page_missing_title(line: usize, page: &str) -> (usize, Self) {
+        (
+            line,
+            Self::PageMissingTitle {
+                page: page.to_owned(),
+            },
+        )
+    }
+
+    pub fn excessive_page_titles(line: usize, page: &str) -> (usize, Self) {
+        (
+            line,
+            Self::ExcessivePageTitles {
+                page: page.to_owned(),
+            },
+        )
+    }
+
+    pub fn unexpected_argument(line: usize, block: DirectiveKind) -> (usize, Self) {
+        (line, Self::UnexpectedArgument { block })
+    }
+
+    pub fn missing_text(line: usize, block: DirectiveKind) -> (usize, Self) {
+        (line, Self::MissingText { block })
+    }
+
+    pub fn unexpected_child_directive(line: usize, block: DirectiveKind) -> (usize, Self) {
+        (line, Self::UnexpectedChildDirective { block })
+    }
+
+    pub fn excessive_child_count(line: usize, block: DirectiveKind) -> (usize, Self) {
+        (line, Self::ExcessiveChildCount { block })
+    }
+}
+
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
