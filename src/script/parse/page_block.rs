@@ -8,6 +8,7 @@ use super::{
 enum PageBlock<'a> {
     Title(&'a str),
     Link(&'a str, &'a str),
+    Text(Vec<&'a str>),
 }
 
 impl<'a> PageBlock<'a> {
@@ -21,7 +22,53 @@ impl<'a> PageBlock<'a> {
             DirectiveKind::Page => todo!(),
             DirectiveKind::Title => Self::title(block.line, internal.argument, internal.children),
             DirectiveKind::Link => Self::link(block.line, internal.argument, internal.children),
-            DirectiveKind::Text => todo!(),
+            DirectiveKind::Text => Self::text(block.line, internal.argument, internal.children),
+        }
+    }
+
+    fn text(
+        line: usize,
+        argument: Option<&'a str>,
+        children: Vec<Block<'a>>,
+    ) -> Result<(usize, PageBlock<'a>), Vec<(usize, Error)>> {
+        let mut errors = Vec::new();
+
+        if argument.is_some() {
+            errors.push((
+                line,
+                Error::UnexpectedArgument {
+                    block: DirectiveKind::Text,
+                },
+            ))
+        }
+
+        if children.is_empty() {
+            errors.push((
+                line,
+                Error::MissingText {
+                    block: DirectiveKind::Text,
+                },
+            ));
+        }
+
+        let mut paragraphs = Vec::with_capacity(children.len());
+
+        for child in children {
+            match child.kind {
+                BlockKind::Internal(_) => errors.push((
+                    child.line,
+                    Error::UnexpectedChildDirective {
+                        block: DirectiveKind::Text,
+                    },
+                )),
+                BlockKind::External(text) => paragraphs.push(text),
+            }
+        }
+
+        if errors.is_empty() {
+            Ok((line, PageBlock::Text(paragraphs)))
+        } else {
+            Err(errors)
         }
     }
 
@@ -38,7 +85,12 @@ impl<'a> PageBlock<'a> {
 
         let child = match children.as_slice() {
             [] => {
-                errors.push((line, Error::MissingLinkText));
+                errors.push((
+                    line,
+                    Error::MissingText {
+                        block: DirectiveKind::Link,
+                    },
+                ));
                 return Err(errors);
             }
             [child] => child,
@@ -74,12 +126,22 @@ impl<'a> PageBlock<'a> {
         let mut errors = Vec::new();
 
         if argument.is_some() {
-            errors.push((line, Error::UnexpectedTitleArgument));
+            errors.push((
+                line,
+                Error::UnexpectedArgument {
+                    block: DirectiveKind::Title,
+                },
+            ));
         }
 
         let child = match children.as_slice() {
             [] => {
-                errors.push((line, Error::MissingTitleText));
+                errors.push((
+                    line,
+                    Error::MissingText {
+                        block: DirectiveKind::Title,
+                    },
+                ));
                 return Err(errors);
             }
             [child] => child,
@@ -119,7 +181,9 @@ mod tests {
         let output = PageBlock::parse(input).unwrap_err();
 
         assert_eq!(1, output.len());
-        assert!(matches!(&output[0], (2, Error::MissingTitleText)));
+        assert!(
+            matches!(&output[0], (2, Error::MissingText { block }) if *block == DirectiveKind::Title)
+        );
     }
 
     #[test]
@@ -129,8 +193,12 @@ mod tests {
         let output = PageBlock::parse(input).unwrap_err();
 
         assert_eq!(2, output.len());
-        assert!(matches!(&output[0], (2, Error::UnexpectedTitleArgument)));
-        assert!(matches!(&output[1], (2, Error::MissingTitleText)));
+        assert!(
+            matches!(&output[0], (2, Error::UnexpectedArgument { block }) if *block == DirectiveKind::Title)
+        );
+        assert!(
+            matches!(&output[1], (2, Error::MissingText { block }) if *block == DirectiveKind::Title)
+        );
     }
 
     #[test]
@@ -190,7 +258,9 @@ mod tests {
 
         assert_eq!(2, output.len());
         assert!(matches!(&output[0], (2, Error::MissingLinkArgument)));
-        assert!(matches!(&output[1], (2, Error::MissingLinkText)));
+        assert!(
+            matches!(&output[1], (2, Error::MissingText { block }) if *block == DirectiveKind::Link)
+        );
     }
 
     #[test]
@@ -200,7 +270,9 @@ mod tests {
         let output = PageBlock::parse(input).unwrap_err();
 
         assert_eq!(1, output.len());
-        assert!(matches!(&output[0], (2, Error::MissingLinkText)));
+        assert!(
+            matches!(&output[0], (2, Error::MissingText { block }) if *block == DirectiveKind::Link)
+        );
     }
 
     #[test]
@@ -254,5 +326,93 @@ mod tests {
                 if target == "trip-onto-landmine"
                 && text == "Watch out for that landmine!"
         ))
+    }
+
+    #[test]
+    fn report_empty_text_blocks() {
+        let input = Block::internal(123, DirectiveKind::Text, None, Vec::new());
+
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert_eq!(1, output.len());
+        assert!(
+            matches!(&output[0], (123, Error::MissingText { block }) if *block == DirectiveKind::Text)
+        );
+    }
+
+    #[test]
+    fn report_unexpected_text_argument() {
+        let input = Block::internal(
+            4567,
+            DirectiveKind::Text,
+            Some("asdfghjkl"),
+            vec![Block::external(2000000000, "hello")],
+        );
+
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert_eq!(1, output.len());
+        assert!(
+            matches!(&output[0], (4567, Error::UnexpectedArgument { block }) if *block == DirectiveKind::Text)
+        );
+    }
+
+    #[test]
+    fn can_parse_valid_text_blocks() {
+        let input = Block::internal(
+            6,
+            DirectiveKind::Text,
+            None,
+            vec![
+                Block::external(7, "first paragraph"),
+                Block::external(8, "the second"),
+                Block::external(9, "a third"),
+                Block::external(10, "finally the fourth"),
+            ],
+        );
+
+        let output = PageBlock::parse(input).unwrap();
+
+        match output {
+            (l, _) if l != 6 => panic!("Wrong line number!"),
+            (_, PageBlock::Text(paragraphs)) => {
+                assert_eq!(4, paragraphs.len());
+                assert_eq!("first paragraph", paragraphs[0]);
+                assert_eq!("the second", paragraphs[1]);
+                assert_eq!("a third", paragraphs[2]);
+                assert_eq!("finally the fourth", paragraphs[3]);
+            }
+            _ => {
+                panic!("Wrong PageBlock variant!");
+            }
+        }
+    }
+
+    #[test]
+    fn report_directives_within_text_block() {
+        let input = Block::internal(
+            6,
+            DirectiveKind::Text,
+            None,
+            vec![
+                Block::external(7, "first paragraph"),
+                Block::external(8, "the second"),
+                Block::internal(9, DirectiveKind::Text, None, Vec::new()),
+                Block::external(10, "finally the fourth"),
+                Block::internal(11, DirectiveKind::Text, None, Vec::new()),
+            ],
+        );
+
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert_eq!(2, output.len());
+        assert!(matches!(
+            &output[0],
+            (9, Error::UnexpectedChildDirective { block }) if *block == DirectiveKind::Text
+        ));
+        assert!(matches!(
+            &output[1],
+            (11, Error::UnexpectedChildDirective { block }) if *block == DirectiveKind::Text
+        ));
     }
 }

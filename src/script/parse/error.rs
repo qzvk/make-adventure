@@ -4,12 +4,11 @@ use super::line::DirectiveKind;
 pub enum Error {
     InvalidIndentation { count: usize },
     UnexpectedIndenation { expected: usize, found: usize },
-    MissingTitleText,
-    UnexpectedTitleArgument,
+    UnexpectedArgument { block: DirectiveKind },
     ExcessiveChildCount { block: DirectiveKind },
     UnexpectedChildDirective { block: DirectiveKind },
     MissingLinkArgument,
-    MissingLinkText,
+    MissingText { block: DirectiveKind },
 }
 
 impl std::fmt::Display for Error {
@@ -23,9 +22,11 @@ impl std::fmt::Display for Error {
                 f,
                 "Unexpected indentation, expected {expected}, but saw {found}."
             ),
-            Error::MissingTitleText => write!(f, "A title directive has no text for it."),
-            Error::UnexpectedTitleArgument => {
-                write!(f, "A title directive cannot have an argument.")
+            Error::MissingText { block } => {
+                write!(f, "A {block} directive has no text, but requires it.")
+            }
+            Error::UnexpectedArgument { block } => {
+                write!(f, "A {block} directive cannot have an argument.")
             }
             Error::ExcessiveChildCount { block } => {
                 write!(f, "The {block} directive here expected a single child, but multiple were provided.")
@@ -37,7 +38,6 @@ impl std::fmt::Display for Error {
                 )
             }
             Error::MissingLinkArgument => write!(f, "Link directives require an argument."),
-            Error::MissingLinkText => write!(f, "Link directives require a line of text."),
         }
     }
 }
