@@ -47,9 +47,10 @@ fn blocks_to_page_blocks(blocks: Vec<Block>) -> Result<Vec<PageBlock>> {
     }
 
     if errors.is_empty() {
-        // TODO: A page block should contain its own line number.
+        println!("{page_blocks:#?}");
         Ok(page_blocks)
     } else {
+        println!("{errors:#?}");
         Err(errors)
     }
 }

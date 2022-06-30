@@ -17,7 +17,7 @@ impl<'a> PageBlock<'a> {
     pub fn parse(block: Block<'a>) -> Result<(usize, PageBlock), Vec<(usize, Error)>> {
         let internal = match block.kind {
             BlockKind::Internal(i) => i,
-            _ => todo!(),
+            BlockKind::External(_) => return Err(vec![(block.line, Error::UnexpectedText)]),
         };
 
         match internal.kind {
@@ -35,7 +35,7 @@ impl<'a> PageBlock<'a> {
     ) -> Result<(usize, PageBlock<'a>), Vec<(usize, Error)>> {
         let mut errors = Vec::new();
 
-        let identifier = match argument {
+        let page_identifier = match argument {
             Some(s) => s,
             None => {
                 errors.push((
@@ -57,8 +57,14 @@ impl<'a> PageBlock<'a> {
                 Ok((_, PageBlock::Title(title))) => titles.push(title),
                 Ok((_, PageBlock::Text(new_text))) => text.extend(new_text),
                 Ok((_, PageBlock::Link(target, text))) => links.push((target, text)),
+                Ok((line, PageBlock::Page { identifier, .. })) => errors.push((
+                    line,
+                    Error::NestedPage {
+                        parent: page_identifier.to_owned(),
+                        child: identifier.to_owned(),
+                    },
+                )),
                 Err(new_errors) => errors.extend(new_errors),
-                _ => todo!(),
             }
         }
 
@@ -67,7 +73,7 @@ impl<'a> PageBlock<'a> {
                 errors.push((
                     line,
                     Error::PageMissingTitle {
-                        page: identifier.to_owned(),
+                        page: page_identifier.to_owned(),
                     },
                 ));
                 "{untitled}"
@@ -77,7 +83,7 @@ impl<'a> PageBlock<'a> {
                 errors.push((
                     line,
                     Error::ExcessivePageTitles {
-                        page: identifier.to_owned(),
+                        page: page_identifier.to_owned(),
                     },
                 ));
                 first
@@ -88,7 +94,7 @@ impl<'a> PageBlock<'a> {
             Ok((
                 line,
                 PageBlock::Page {
-                    identifier,
+                    identifier: page_identifier,
                     title,
                     text,
                     links,
@@ -729,5 +735,51 @@ mod tests {
             }
             _ => panic!("Incorrect PageBlock variant!"),
         }
+    }
+
+    #[test]
+    fn report_unexpected_text() {
+        let input = Block::external(10, "Hello!");
+
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert_eq!(1, output.len());
+        assert!(matches!(&output[0], (10, Error::UnexpectedText)));
+    }
+
+    #[test]
+    fn report_unexpected_nested_pages() {
+        let input = Block::internal(
+            50,
+            DirectiveKind::Page,
+            Some("parent"),
+            vec![
+                Block::internal(
+                    51,
+                    DirectiveKind::Title,
+                    None,
+                    vec![Block::external(52, "I have a title!")],
+                ),
+                Block::internal(
+                    54,
+                    DirectiveKind::Page,
+                    Some("child"),
+                    vec![Block::internal(
+                        55,
+                        DirectiveKind::Title,
+                        None,
+                        vec![Block::external(56, "I have a title!")],
+                    )],
+                ),
+            ],
+        );
+
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert_eq!(1, output.len());
+        assert!(matches!(
+            &output[0],
+            (54, Error::NestedPage { parent, child }) if parent == "parent" && child == "child"
+        ));
     }
 }

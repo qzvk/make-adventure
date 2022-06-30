@@ -11,6 +11,8 @@ pub enum Error {
     MissingText { block: DirectiveKind },
     PageMissingTitle { page: String },
     ExcessivePageTitles { page: String },
+    UnexpectedText,
+    NestedPage { parent: String, child: String },
 }
 
 impl std::fmt::Display for Error {
@@ -47,6 +49,10 @@ impl std::fmt::Display for Error {
             }
             Error::ExcessivePageTitles { page } => {
                 write!(f, "The page {page:?} has too many declared titles.")
+            }
+            Error::UnexpectedText => write!(f, "Unexpected text."),
+            Error::NestedPage { parent, child } => {
+                write!(f, "Page {child:?} is nested inside of {parent:?}.")
             }
         }
     }
