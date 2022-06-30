@@ -5,7 +5,11 @@ pub enum PageBlock<'a> {
     Title(&'a str),
     Link(&'a str, &'a str),
     Text(Vec<&'a str>),
-    Page { identifier: &'a str, title: &'a str },
+    Page {
+        identifier: &'a str,
+        title: &'a str,
+        text: Vec<&'a str>,
+    },
 }
 
 impl<'a> PageBlock<'a> {
@@ -44,10 +48,12 @@ impl<'a> PageBlock<'a> {
         };
 
         let mut titles = Vec::with_capacity(1);
+        let mut text = Vec::new();
 
         for child in children {
             match Self::parse(child) {
                 Ok((_, PageBlock::Title(title))) => titles.push(title),
+                Ok((_, PageBlock::Text(new_text))) => text.extend(new_text),
                 _ => {}
             }
         }
@@ -75,7 +81,14 @@ impl<'a> PageBlock<'a> {
         };
 
         if errors.is_empty() {
-            Ok((line, PageBlock::Page { identifier, title }))
+            Ok((
+                line,
+                PageBlock::Page {
+                    identifier,
+                    title,
+                    text,
+                },
+            ))
         } else {
             Err(errors)
         }
@@ -568,9 +581,74 @@ mod tests {
 
         match output {
             (line, _) if line != 50 => panic!("Line number is wrong"),
-            (_, PageBlock::Page { identifier, title }) => {
+            (
+                _,
+                PageBlock::Page {
+                    identifier,
+                    title,
+                    text,
+                },
+            ) => {
                 assert_eq!("almost-empty", identifier);
                 assert_eq!("I have a title!", title);
+                assert!(text.is_empty());
+            }
+            _ => panic!("Incorrect PageBlock variant!"),
+        }
+    }
+
+    #[test]
+    fn can_collect_text_from_page() {
+        let input = Block::internal(
+            0,
+            DirectiveKind::Page,
+            Some("with-text"),
+            vec![
+                Block::internal(
+                    1,
+                    DirectiveKind::Title,
+                    None,
+                    vec![Block::external(2, "Title")],
+                ),
+                Block::internal(
+                    4,
+                    DirectiveKind::Text,
+                    None,
+                    vec![Block::external(5, "first"), Block::external(6, "second")],
+                ),
+                Block::internal(
+                    8,
+                    DirectiveKind::Text,
+                    None,
+                    vec![
+                        Block::external(9, "third"),
+                        Block::external(10, "fourth"),
+                        Block::external(11, "fifth"),
+                    ],
+                ),
+            ],
+        );
+
+        let output = PageBlock::parse(input).unwrap();
+
+        match output {
+            (line, _) if line != 0 => panic!("Line number is wrong"),
+            (
+                _,
+                PageBlock::Page {
+                    identifier,
+                    title,
+                    text,
+                },
+            ) => {
+                assert_eq!("with-text", identifier);
+                assert_eq!("Title", title);
+                assert_eq!(5, text.len());
+                assert_eq!("first", text[0]);
+                assert_eq!("second", text[1]);
+                assert_eq!("third", text[2]);
+                assert_eq!("fourth", text[3]);
+                assert_eq!("fifth", text[4]);
             }
             _ => panic!("Incorrect PageBlock variant!"),
         }
