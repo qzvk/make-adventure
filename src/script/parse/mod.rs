@@ -6,11 +6,10 @@ mod page_block;
 use self::{
     block::Block,
     line::{Line, Lines},
+    page_block::PageBlock,
 };
 use super::{Page, Script};
 pub use error::Error;
-
-struct PageBlock {}
 
 type Result<T> = std::result::Result<T, Vec<(usize, Error)>>;
 
@@ -37,10 +36,25 @@ fn lines_to_blocks(lines: Vec<(usize, Line)>) -> Result<Vec<Block>> {
 }
 
 fn blocks_to_page_blocks(blocks: Vec<Block>) -> Result<Vec<PageBlock>> {
-    todo!()
+    let mut page_blocks = Vec::with_capacity(blocks.len());
+    let mut errors = Vec::new();
+
+    for block in blocks {
+        match PageBlock::parse(block) {
+            Ok((_, o)) => page_blocks.push(o),
+            Err(e) => errors.extend(e),
+        }
+    }
+
+    if errors.is_empty() {
+        // TODO: A page block should contain its own line number.
+        Ok(page_blocks)
+    } else {
+        Err(errors)
+    }
 }
 
-fn page_blocks_to_pages(page_blocks: Vec<PageBlock>) -> Result<Vec<Page>> {
+fn page_blocks_to_pages(_page_blocks: Vec<PageBlock>) -> Result<Vec<Page>> {
     todo!()
 }
 

@@ -1,14 +1,11 @@
-use super::{
-    block::{BlockKind, InternalBlock},
-    line::DirectiveKind,
-    Block, Error,
-};
+use super::{block::BlockKind, line::DirectiveKind, Block, Error};
 
 #[derive(Debug)]
-enum PageBlock<'a> {
+pub enum PageBlock<'a> {
     Title(&'a str),
     Link(&'a str, &'a str),
     Text(Vec<&'a str>),
+    Page { identifier: &'a str, title: &'a str },
 }
 
 impl<'a> PageBlock<'a> {
@@ -19,10 +16,68 @@ impl<'a> PageBlock<'a> {
         };
 
         match internal.kind {
-            DirectiveKind::Page => todo!(),
+            DirectiveKind::Page => Self::page(block.line, internal.argument, internal.children),
             DirectiveKind::Title => Self::title(block.line, internal.argument, internal.children),
             DirectiveKind::Link => Self::link(block.line, internal.argument, internal.children),
             DirectiveKind::Text => Self::text(block.line, internal.argument, internal.children),
+        }
+    }
+
+    fn page(
+        line: usize,
+        argument: Option<&'a str>,
+        children: Vec<Block<'a>>,
+    ) -> Result<(usize, PageBlock<'a>), Vec<(usize, Error)>> {
+        let mut errors = Vec::new();
+
+        let identifier = match argument {
+            Some(s) => s,
+            None => {
+                errors.push((
+                    line,
+                    Error::MissingArgument {
+                        block: DirectiveKind::Page,
+                    },
+                ));
+                "{unnamed}"
+            }
+        };
+
+        let mut titles = Vec::with_capacity(1);
+
+        for child in children {
+            match Self::parse(child) {
+                Ok((_, PageBlock::Title(title))) => titles.push(title),
+                _ => {}
+            }
+        }
+
+        let title = match titles.as_slice() {
+            [] => {
+                errors.push((
+                    line,
+                    Error::PageMissingTitle {
+                        page: identifier.to_owned(),
+                    },
+                ));
+                "{untitled}"
+            }
+            [t] => t,
+            [first, ..] => {
+                errors.push((
+                    line,
+                    Error::ExcessivePageTitles {
+                        page: identifier.to_owned(),
+                    },
+                ));
+                first
+            }
+        };
+
+        if errors.is_empty() {
+            Ok((line, PageBlock::Page { identifier, title }))
+        } else {
+            Err(errors)
         }
     }
 
@@ -80,7 +135,12 @@ impl<'a> PageBlock<'a> {
         let mut errors = Vec::new();
 
         if argument.is_none() {
-            errors.push((line, Error::MissingLinkArgument));
+            errors.push((
+                line,
+                Error::MissingArgument {
+                    block: DirectiveKind::Link,
+                },
+            ));
         }
 
         let child = match children.as_slice() {
@@ -257,7 +317,15 @@ mod tests {
         let output = PageBlock::parse(input).unwrap_err();
 
         assert_eq!(2, output.len());
-        assert!(matches!(&output[0], (2, Error::MissingLinkArgument)));
+        assert!(matches!(
+            &output[0],
+            (
+                2,
+                Error::MissingArgument {
+                    block: DirectiveKind::Link
+                }
+            )
+        ));
         assert!(
             matches!(&output[1], (2, Error::MissingText { block }) if *block == DirectiveKind::Link)
         );
@@ -414,5 +482,97 @@ mod tests {
             &output[1],
             (11, Error::UnexpectedChildDirective { block }) if *block == DirectiveKind::Text
         ));
+    }
+
+    #[test]
+    fn report_page_without_identifier() {
+        let input = Block::internal(0, DirectiveKind::Page, None, Vec::new());
+
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert_eq!(2, output.len());
+        assert!(matches!(
+            &output[0],
+            (0, Error::MissingArgument { block }) if *block == DirectiveKind::Page
+        ));
+        assert!(matches!(
+            &output[1],
+            (0, Error::PageMissingTitle { page }) if page == "{unnamed}"
+        ));
+    }
+
+    #[test]
+    fn report_page_without_title() {
+        let input = Block::internal(
+            0,
+            DirectiveKind::Page,
+            Some("my-first-valid-page"),
+            Vec::new(),
+        );
+
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert_eq!(1, output.len());
+        assert!(matches!(
+            &output[0],
+            (0, Error::PageMissingTitle { page }) if page == "my-first-valid-page"
+        ));
+    }
+
+    #[test]
+    fn report_page_with_excessive_titles() {
+        let input = Block::internal(
+            0,
+            DirectiveKind::Page,
+            Some("too-many-titles"),
+            vec![
+                Block::internal(
+                    1,
+                    DirectiveKind::Title,
+                    None,
+                    vec![Block::external(2, "first")],
+                ),
+                Block::internal(
+                    3,
+                    DirectiveKind::Title,
+                    None,
+                    vec![Block::external(4, "second")],
+                ),
+            ],
+        );
+
+        let output = PageBlock::parse(input).unwrap_err();
+
+        assert_eq!(1, output.len());
+        assert!(matches!(
+            &output[0],
+            (0, Error::ExcessivePageTitles { page }) if page == "too-many-titles"
+        ));
+    }
+
+    #[test]
+    fn can_parse_empty_valid_page() {
+        let input = Block::internal(
+            50,
+            DirectiveKind::Page,
+            Some("almost-empty"),
+            vec![Block::internal(
+                51,
+                DirectiveKind::Title,
+                None,
+                vec![Block::external(52, "I have a title!")],
+            )],
+        );
+
+        let output = PageBlock::parse(input).unwrap();
+
+        match output {
+            (line, _) if line != 50 => panic!("Line number is wrong"),
+            (_, PageBlock::Page { identifier, title }) => {
+                assert_eq!("almost-empty", identifier);
+                assert_eq!("I have a title!", title);
+            }
+            _ => panic!("Incorrect PageBlock variant!"),
+        }
     }
 }

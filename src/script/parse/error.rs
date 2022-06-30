@@ -7,8 +7,10 @@ pub enum Error {
     UnexpectedArgument { block: DirectiveKind },
     ExcessiveChildCount { block: DirectiveKind },
     UnexpectedChildDirective { block: DirectiveKind },
-    MissingLinkArgument,
+    MissingArgument { block: DirectiveKind },
     MissingText { block: DirectiveKind },
+    PageMissingTitle { page: String },
+    ExcessivePageTitles { page: String },
 }
 
 impl std::fmt::Display for Error {
@@ -37,7 +39,15 @@ impl std::fmt::Display for Error {
                     "The {block} directive can only contain text, not other directives."
                 )
             }
-            Error::MissingLinkArgument => write!(f, "Link directives require an argument."),
+            Error::MissingArgument { block } => {
+                write!(f, "The {block} directive requires an argument.")
+            }
+            Error::PageMissingTitle { page } => {
+                write!(f, "The page {page:?} was declared with no title.")
+            }
+            Error::ExcessivePageTitles { page } => {
+                write!(f, "The page {page:?} has too many declared titles.")
+            }
         }
     }
 }
