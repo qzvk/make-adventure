@@ -6,26 +6,35 @@ enum PageBlock<'a> {
 }
 
 impl<'a> PageBlock<'a> {
-    pub fn parse(block: Block) -> Result<(usize, PageBlock), (usize, Error)> {
+    pub fn parse(block: Block) -> Result<(usize, PageBlock), Vec<(usize, Error)>> {
         let internal = match block.kind {
             BlockKind::Internal(i) => i,
             _ => todo!(),
         };
 
+        let mut errors = Vec::new();
+
         if internal.argument.is_some() {
-            return Err((block.line, Error::UnexpectedTitleArgument));
+            errors.push((block.line, Error::UnexpectedTitleArgument));
         }
 
         let child = match internal.children.as_slice() {
-            [] => return Err((block.line, Error::MissingTitleText)),
+            [] => {
+                errors.push((block.line, Error::MissingTitleText));
+                return Err(errors);
+            }
             [child] => child,
-            [.., last] => return Err((last.line, Error::ExcessiveTitleText)),
+            [.., last] => {
+                errors.push((last.line, Error::ExcessiveTitleText));
+                return Err(errors);
+            }
         };
 
         if let BlockKind::External(text) = child.kind {
             Ok((block.line, PageBlock::Title(text)))
         } else {
-            Err((child.line, Error::UnexpectedChildDirectiveOfTitle))
+            errors.push((child.line, Error::UnexpectedChildDirectiveOfTitle));
+            Err(errors)
         }
     }
 }
@@ -40,7 +49,8 @@ mod tests {
 
         let output = PageBlock::parse(input).unwrap_err();
 
-        assert!(matches!(output, (2, Error::MissingTitleText)));
+        assert_eq!(1, output.len());
+        assert!(matches!(&output[0], (2, Error::MissingTitleText)));
     }
 
     #[test]
@@ -49,7 +59,9 @@ mod tests {
 
         let output = PageBlock::parse(input).unwrap_err();
 
-        assert!(matches!(output, (2, Error::UnexpectedTitleArgument)));
+        assert_eq!(2, output.len());
+        assert!(matches!(&output[0], (2, Error::UnexpectedTitleArgument)));
+        assert!(matches!(&output[1], (2, Error::MissingTitleText)));
     }
 
     #[test]
@@ -63,7 +75,8 @@ mod tests {
 
         let output = PageBlock::parse(input).unwrap_err();
 
-        assert!(matches!(output, (4, Error::ExcessiveTitleText)));
+        assert_eq!(1, output.len());
+        assert!(matches!(&output[0], (4, Error::ExcessiveTitleText)));
     }
 
     #[test]
@@ -77,8 +90,9 @@ mod tests {
 
         let output = PageBlock::parse(input).unwrap_err();
 
+        assert_eq!(1, output.len());
         assert!(matches!(
-            output,
+            &output[0],
             (3, Error::UnexpectedChildDirectiveOfTitle)
         ));
     }
