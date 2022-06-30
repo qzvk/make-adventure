@@ -23,7 +23,7 @@ pub enum Error {
     BadTemplate(handlebars::TemplateError),
 
     /// Failed to generate an adventure with the given config.
-    Adventure(crate::adventure::error::Error),
+    Adventure(Vec<crate::adventure::error::Error>),
 
     /// Page generation failed.
     PageGeneration(handlebars::RenderError),
@@ -41,14 +41,20 @@ impl std::fmt::Display for Error {
             Error::ParseScript(errors) => {
                 writeln!(f, "Failed to parse script file:")?;
                 for (line, error) in errors {
-                    writeln!(f, "Line {line}: {error}")?;
+                    writeln!(f, "Line {}: {}", line + 1, error)?;
                 }
                 Ok(())
             }
             Error::Directory(e) => write!(f, "Failed to create output directory: {e}"),
             Error::ReadTemplate(e) => write!(f, "Failed to read template file: {e}"),
             Error::BadTemplate(e) => write!(f, "Failed parse template file: {e}"),
-            Error::Adventure(e) => write!(f, "Failed to generate adventure from config: {e}"),
+            Error::Adventure(errors) => {
+                writeln!(f, "Failed to generate adventure from config:")?;
+                for error in errors {
+                    writeln!(f, "{error}")?;
+                }
+                Ok(())
+            }
             Error::PageGeneration(e) => write!(f, "Failed generate a page: {e}"),
             Error::WriteOutput(name, e) => write!(
                 f,
