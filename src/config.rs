@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 /// A configuration of an adventure.
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub struct Config {
     /// The path of the template file to use.
     pub template: PathBuf,
