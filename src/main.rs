@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 mod adventure;
 mod args;
 mod config;
