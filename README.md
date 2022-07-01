@@ -163,3 +163,7 @@ I'd like to be able to split the config files into multiple parts, so that I'm n
 ### Documentation
 
 No doubt I'm going to forget about this for a few months before coming back to it. Some documentation would be nice for future me. ;)
+
+### Directive escapes
+
+Text lines can't start with directives, which means its impossible to write a line of text like "page one", since it'll be parsed as a directive. There should be a way to escape directives so a line is always considered text.
