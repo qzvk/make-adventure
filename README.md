@@ -72,7 +72,7 @@ Provided variables are:
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>{{title}}</title>
+    <title>{{index}} - {{title}}</title>
 </head>
 <body>
     <h1>{{title}}</h1>
@@ -119,7 +119,6 @@ To add additional information to a directive, further *indented* directives can 
 page My Page
     title
         The title of the page.
-
 ```
 
 Declares a `page` directive (with argument `My Page`) to have a child directive of kind `title`. Which, in turn, has chlid *text*.
