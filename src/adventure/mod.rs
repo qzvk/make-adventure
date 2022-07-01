@@ -15,6 +15,7 @@ pub struct PageLink<'a> {
 #[derive(Debug, Serialize)]
 pub struct Page<'a> {
     pub title: &'a str,
+    pub index: usize,
     pub paragraphs: &'a Vec<&'a str>,
     pub links: Vec<PageLink<'a>>,
 }
@@ -30,8 +31,8 @@ impl<'a> Adventure<'a> {
         let mut pages = Vec::with_capacity(script.pages.len());
         let mut errors = Vec::new();
 
-        for page in &script.pages {
-            match Self::make_page(script, page) {
+        for (index, page) in script.pages.iter().enumerate() {
+            match Self::make_page(script, index + 1, page) {
                 Ok(o) => pages.push(o),
                 Err(e) => errors.extend(e),
             }
@@ -44,11 +45,16 @@ impl<'a> Adventure<'a> {
         }
     }
 
-    fn make_page(script: &'a Script, page: &'a script::Page) -> Result<Page<'a>, Vec<Error>> {
+    fn make_page(
+        script: &'a Script,
+        index: usize,
+        page: &'a script::Page,
+    ) -> Result<Page<'a>, Vec<Error>> {
         let links = Self::make_links(script, page)?;
 
         Ok(Page {
             title: page.title,
+            index,
             paragraphs: &page.paragraphs,
             links,
         })
