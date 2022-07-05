@@ -2,7 +2,7 @@
 name = "make-adventure"
 authors = ["qzvck <reisuo@protonmail.com>"]
 description = "A tool for generating adventures in HTML form."
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 readme = "README.md"
 license = "Apache-2.0"
