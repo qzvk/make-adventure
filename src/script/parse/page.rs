@@ -151,12 +151,19 @@ impl<'a> PageBlock<'a> {
             }
         };
 
-        if let (BlockKind::External(text), Some(argument)) = (&child.kind, argument) {
-            let link = PageBlock::Link(argument, text);
+        let text = match child.kind {
+            BlockKind::Internal(_) => {
+                let error = Error::unexpected_child_directive(child.line, DirectiveKind::Link);
+                errors.push(error);
+                return Err(errors);
+            }
+            BlockKind::External(e) => e,
+        };
+
+        if let Some(arg) = argument {
+            let link = PageBlock::Link(arg, text);
             Ok((line, link))
         } else {
-            let error = Error::unexpected_child_directive(child.line, DirectiveKind::Link);
-            errors.push(error);
             Err(errors)
         }
     }
@@ -751,6 +758,16 @@ mod tests {
             ],
         );
 
-        let _ = PageBlock::parse(input).unwrap_err();
+        let output = PageBlock::parse(input).unwrap_err();
+        assert_eq!(1, output.len());
+        assert!(matches!(
+            &output[0],
+            (
+                3,
+                Error::MissingArgument {
+                    block: DirectiveKind::Link
+                }
+            )
+        ))
     }
 }
