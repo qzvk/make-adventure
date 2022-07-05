@@ -1,6 +1,6 @@
 # make-adventure
 
-Personal-use static site generator tool for generating text adventure games.
+Static site generator tool for generating text adventure games.
 
 ## Table of Contents
 
@@ -94,7 +94,7 @@ The script file contains all of the user-facing content for an adventure, and us
 
 Each line may either be blank, a comment, a directive or text.
 
-Blank lines (containing only whitespace) and comments (starting with any amount of whitespace and then a hash (`#`)) are ignored, and have no effect on the surrounding lines.
+Blank lines (containing only whitespace) and comments (starting with any amount of whitespace and then a hash (`#`) are ignored, and have no effect on the surrounding lines.
 
 ### Directives
 
@@ -166,3 +166,7 @@ No doubt I'm going to forget about this for a few months before coming back to i
 ### Directive escapes
 
 Text lines can't start with directives, which means its impossible to write a line of text like "page one", since it'll be parsed as a directive. There should be a way to escape directives so a line is always considered text.
+
+### Regular expressions for additional files
+
+Automatic inclusion of all files matching a given pattern would be useful, or even simple glob matching.
