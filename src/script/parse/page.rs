@@ -151,8 +151,8 @@ impl<'a> PageBlock<'a> {
             }
         };
 
-        if let BlockKind::External(text) = child.kind {
-            let link = PageBlock::Link(argument.unwrap(), text);
+        if let (BlockKind::External(text), Some(argument)) = (&child.kind, argument) {
+            let link = PageBlock::Link(argument, text);
             Ok((line, link))
         } else {
             let error = Error::unexpected_child_directive(child.line, DirectiveKind::Link);
@@ -724,5 +724,33 @@ mod tests {
             &output[0],
             (54, Error::NestedPage { parent, child }) if parent == "parent" && child == "child"
         ));
+    }
+
+    #[test]
+    fn dont_panic_on_unargumented_link_within_page() {
+        // This test covers previously tested behaviour, but this specific case caused an unwrap
+        // to panic where it shouldn't.
+
+        let input = Block::internal(
+            0,
+            DirectiveKind::Page,
+            Some("page"),
+            vec![
+                Block::internal(
+                    1,
+                    DirectiveKind::Title,
+                    None,
+                    vec![Block::external(2, "title")],
+                ),
+                Block::internal(
+                    3,
+                    DirectiveKind::Link,
+                    None,
+                    vec![Block::external(4, "LINK TEXT")],
+                ),
+            ],
+        );
+
+        let _ = PageBlock::parse(input).unwrap_err();
     }
 }
